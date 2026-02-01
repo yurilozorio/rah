@@ -1,0 +1,188 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}
+      POSTGRES_DB: ${POSTGRES_DB:-app}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - internal
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres} -d ${POSTGRES_DB:-app}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+
+  cms:
+    build:
+      context: .
+      dockerfile: apps/cms/Dockerfile
+    image: ${REGISTRY:-}rah-cms:${TAG:-latest}
+    restart: unless-stopped
+    environment:
+      HOST: 0.0.0.0
+      PORT: 1337
+      APP_KEYS: ${CMS_APP_KEYS:?CMS_APP_KEYS is required}
+      API_TOKEN_SALT: ${CMS_API_TOKEN_SALT:?CMS_API_TOKEN_SALT is required}
+      ADMIN_JWT_SECRET: ${CMS_ADMIN_JWT_SECRET:?CMS_ADMIN_JWT_SECRET is required}
+      TRANSFER_TOKEN_SALT: ${CMS_TRANSFER_TOKEN_SALT:?CMS_TRANSFER_TOKEN_SALT is required}
+      JWT_SECRET: ${CMS_JWT_SECRET:?CMS_JWT_SECRET is required}
+      DATABASE_CLIENT: postgres
+      DATABASE_HOST: postgres
+      DATABASE_PORT: 5432
+      DATABASE_NAME: ${POSTGRES_DB:-app}
+      DATABASE_USERNAME: ${POSTGRES_USER:-postgres}
+      DATABASE_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}
+      DATABASE_SSL: ${DATABASE_SSL:-false}
+      NODE_ENV: production
+      STRAPI_TELEMETRY_DISABLED: "true"
+    volumes:
+      - cms_uploads:/app/public/uploads
+    networks:
+      - internal
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:1337/_health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+
+  api:
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+    image: ${REGISTRY:-}rah-api:${TAG:-latest}
+    restart: unless-stopped
+    environment:
+      PORT: 4000
+      NODE_ENV: production
+      DATABASE_URL: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}@postgres:5432/${POSTGRES_DB:-app}?schema=api
+      JWT_SECRET: ${API_JWT_SECRET:?API_JWT_SECRET is required}
+      STRAPI_URL: http://cms:1337
+      STRAPI_API_TOKEN: ${STRAPI_API_TOKEN:?STRAPI_API_TOKEN is required}
+      WHATSAPP_ACCESS_TOKEN: ${WHATSAPP_ACCESS_TOKEN:-}
+      WHATSAPP_PHONE_NUMBER_ID: ${WHATSAPP_PHONE_NUMBER_ID:-}
+      WHATSAPP_BUSINESS_ACCOUNT_ID: ${WHATSAPP_BUSINESS_ACCOUNT_ID:-}
+      WHATSAPP_TEMPLATE_CONFIRMATION: ${WHATSAPP_TEMPLATE_CONFIRMATION:-}
+      WHATSAPP_TEMPLATE_REMINDER: ${WHATSAPP_TEMPLATE_REMINDER:-}
+      TIMEZONE: ${TIMEZONE:-America/Sao_Paulo}
+      BUSINESS_START_MIN: ${BUSINESS_START_MIN:-540}
+      BUSINESS_END_MIN: ${BUSINESS_END_MIN:-1140}
+    networks:
+      - internal
+    depends_on:
+      postgres:
+        condition: service_healthy
+      cms:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:4000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+
+  worker:
+    build:
+      context: .
+      dockerfile: apps/worker/Dockerfile
+    image: ${REGISTRY:-}rah-worker:${TAG:-latest}
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      DATABASE_URL: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}@postgres:5432/${POSTGRES_DB:-app}?schema=api
+      WHATSAPP_ACCESS_TOKEN: ${WHATSAPP_ACCESS_TOKEN:-}
+      WHATSAPP_PHONE_NUMBER_ID: ${WHATSAPP_PHONE_NUMBER_ID:-}
+      WHATSAPP_TEMPLATE_REMINDER: ${WHATSAPP_TEMPLATE_REMINDER:-}
+      TIMEZONE: ${TIMEZONE:-America/Sao_Paulo}
+    networks:
+      - internal
+    depends_on:
+      postgres:
+        condition: service_healthy
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+
+  web:
+    build:
+      context: .
+      dockerfile: apps/web/Dockerfile
+      args:
+        NEXT_PUBLIC_STRAPI_URL: ${NEXT_PUBLIC_STRAPI_URL:?NEXT_PUBLIC_STRAPI_URL is required}
+        NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:?NEXT_PUBLIC_API_URL is required}
+    image: ${REGISTRY:-}rah-web:${TAG:-latest}
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      STRAPI_URL_INTERNAL: http://cms:1337
+    networks:
+      - internal
+    depends_on:
+      api:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3000"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+
+  # Nginx reverse proxy for SSL termination and routing
+  nginx:
+    image: nginx:alpine
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./nginx/ssl:/etc/nginx/ssl:ro
+      - cms_uploads:/var/www/uploads:ro
+    networks:
+      - internal
+    depends_on:
+      - web
+      - cms
+      - api
+    healthcheck:
+      test: ["CMD", "nginx", "-t"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    deploy:
+      resources:
+        limits:
+          memory: 128M
+
+networks:
+  internal:
+    driver: bridge
+
+volumes:
+  postgres_data:
+  cms_uploads:

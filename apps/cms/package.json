@@ -1,0 +1,47 @@
+{
+  "name": "cms",
+  "version": "0.1.0",
+  "private": true,
+  "description": "A Strapi application",
+  "scripts": {
+    "build": "strapi build",
+    "console": "strapi console",
+    "deploy": "strapi deploy",
+    "dev": "strapi develop",
+    "develop": "strapi develop",
+    "start": "strapi start",
+    "strapi": "strapi",
+    "upgrade": "npx @strapi/upgrade latest",
+    "upgrade:dry": "npx @strapi/upgrade latest --dry"
+  },
+  "dependencies": {
+    "@strapi/plugin-cloud": "5.34.0",
+    "@strapi/plugin-users-permissions": "5.34.0",
+    "@strapi/strapi": "5.34.0",
+    "@swc/core": "1.7.23",
+    "pg": "8.8.0",
+    "react": "^18.0.0",
+    "react-dom": "^18.0.0",
+    "react-router-dom": "^6.0.0",
+    "sharp": "^0.33.5",
+    "styled-components": "^6.0.0"
+  },
+  "optionalDependencies": {
+    "@swc/core-linux-arm64-gnu": "1.7.23",
+    "@rollup/rollup-linux-arm64-gnu": "4.57.1"
+  },
+  "devDependencies": {
+    "@types/node": "^20",
+    "@types/react": "^18",
+    "@types/react-dom": "^18",
+    "typescript": "^5"
+  },
+  "engines": {
+    "node": ">=20.0.0 <=24.x.x",
+    "npm": ">=6.0.0"
+  },
+  "strapi": {
+    "uuid": "52641a23-f46a-4de2-93b7-1b7e009b7496",
+    "installId": "bd796fa332c204bd26a5fa48569d2cc2b90ce06b736f8473103757f170762328"
+  }
+}

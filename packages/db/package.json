@@ -1,0 +1,25 @@
+{
+  "name": "@rah/db",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": "./dist/index.js"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "clean": "rm -rf dist",
+    "prisma:generate": "prisma generate --schema ./prisma/schema.prisma",
+    "prisma:push": "prisma db push --schema ./prisma/schema.prisma",
+    "prisma:migrate": "prisma migrate dev --schema ./prisma/schema.prisma"
+  },
+  "dependencies": {
+    "@prisma/client": "^6.0.0"
+  },
+  "devDependencies": {
+    "prisma": "^6.0.0",
+    "typescript": "^5.7.3"
+  }
+}

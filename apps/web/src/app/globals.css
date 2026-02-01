@@ -1,0 +1,236 @@
+@import "tw-animate-css";
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --radius: 1rem;
+  --background: #fff5f7;
+  --foreground: #2d1b1f;
+  --card: #ffffff;
+  --card-foreground: #2d1b1f;
+  --popover: #ffffff;
+  --popover-foreground: #2d1b1f;
+  --primary: #db7093;
+  --primary-foreground: #ffffff;
+  --secondary: #fce7f3;
+  --secondary-foreground: #3f2a2f;
+  --muted: #fdf2f8;
+  --muted-foreground: #72545d;
+  --accent: #f9a8d4;
+  --accent-foreground: #3f2a2f;
+  --destructive: #e11d48;
+  --border: #fbcfe8;
+  --input: #fbcfe8;
+  --ring: #db7093;
+  --chart-1: #db7093;
+  --chart-2: #f9a8d4;
+  --chart-3: #fbcfe8;
+  --chart-4: #f472b6;
+  --chart-5: #ec4899;
+  --sidebar: #ffffff;
+  --sidebar-foreground: #2d1b1f;
+  --sidebar-primary: #db7093;
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: #fce7f3;
+  --sidebar-accent-foreground: #3f2a2f;
+  --sidebar-border: #fbcfe8;
+  --sidebar-ring: #db7093;
+  
+  /* Enhanced accent colors */
+  --gradient-start: #fce7f3;
+  --gradient-mid: #fdf2f8;
+  --gradient-end: #fff1f2;
+  --accent-warm: #f472b6;
+  --accent-coral: #fb7185;
+  --accent-rose: #e11d48;
+  --accent-gold: #fbbf24;
+}
+
+.dark {
+  --background: #1a1214;
+  --foreground: #fdf7f9;
+  --card: #22171a;
+  --card-foreground: #fdf7f9;
+  --popover: #22171a;
+  --popover-foreground: #fdf7f9;
+  --primary: #f9a8d4;
+  --primary-foreground: #2d1b1f;
+  --secondary: #3a2a2f;
+  --secondary-foreground: #fdf7f9;
+  --muted: #2e2024;
+  --muted-foreground: #c4a9b1;
+  --accent: #4a3a3f;
+  --accent-foreground: #fdf7f9;
+  --destructive: #f43f5e;
+  --border: #4a3a3f;
+  --input: #4a3a3f;
+  --ring: #f9a8d4;
+  --sidebar: #22171a;
+  --sidebar-foreground: #fdf7f9;
+  --sidebar-primary: #f9a8d4;
+  --sidebar-primary-foreground: #2d1b1f;
+  --sidebar-accent: #3a2a2f;
+  --sidebar-accent-foreground: #fdf7f9;
+  --sidebar-border: #4a3a3f;
+  --sidebar-ring: #f9a8d4;
+  
+  --gradient-start: #2e2024;
+  --gradient-mid: #22171a;
+  --gradient-end: #1a1214;
+  --accent-warm: #f472b6;
+  --accent-coral: #fb7185;
+  --accent-rose: #f43f5e;
+  --accent-gold: #fbbf24;
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground;
+    background-image: 
+      radial-gradient(ellipse at top left, rgba(249, 168, 212, 0.15), transparent 50%),
+      radial-gradient(ellipse at top right, rgba(251, 113, 133, 0.1), transparent 50%),
+      radial-gradient(ellipse at bottom, rgba(252, 231, 243, 0.3), transparent 60%);
+  }
+}
+
+@layer components {
+  /* Gradient backgrounds for sections */
+  .gradient-primary {
+    background: linear-gradient(to bottom right, rgb(219 112 147 / 0.1), rgb(249 168 212 / 0.05), transparent);
+  }
+  
+  .gradient-warm {
+    @apply bg-gradient-to-r from-pink-50 via-rose-50 to-orange-50;
+  }
+  
+  .gradient-soft {
+    background: linear-gradient(to bottom right, white, rgb(252 231 243 / 0.5), rgb(255 228 230 / 0.3));
+  }
+  
+  .gradient-vibrant {
+    @apply bg-gradient-to-r from-pink-100 via-rose-100 to-pink-100;
+  }
+  
+  .gradient-hero {
+    background: linear-gradient(135deg, #fce7f3 0%, #fdf2f8 50%, #fff1f2 100%);
+  }
+  
+  /* Decorative blob */
+  .blob {
+    @apply absolute rounded-full blur-3xl opacity-30;
+    animation: blob-float 8s ease-in-out infinite;
+  }
+  
+  .blob-pink {
+    @apply bg-pink-300;
+  }
+  
+  .blob-rose {
+    @apply bg-rose-300;
+  }
+  
+  .blob-coral {
+    @apply bg-orange-200;
+  }
+  
+  @keyframes blob-float {
+    0%, 100% { transform: translate(0, 0) scale(1); }
+    33% { transform: translate(10px, -10px) scale(1.05); }
+    66% { transform: translate(-10px, 10px) scale(0.95); }
+  }
+  
+  /* Card hover effects */
+  .card-hover {
+    @apply transition-all duration-300 ease-out;
+  }
+  
+  .card-hover:hover {
+    @apply -translate-y-1 shadow-lg shadow-pink-200/50;
+  }
+  
+  /* Decorative quote mark */
+  .quote-mark {
+    @apply absolute text-7xl font-serif leading-none select-none pointer-events-none;
+    color: rgb(219 112 147 / 0.15);
+  }
+  
+  /* Star rating styles */
+  .star-filled {
+    @apply text-amber-400 fill-amber-400;
+  }
+  
+  .star-empty {
+    @apply text-gray-300;
+  }
+  
+  /* Selection card styles */
+  .selection-card {
+    @apply relative cursor-pointer overflow-hidden rounded-xl border-2 border-transparent transition-all duration-200;
+  }
+  
+  .selection-card:hover {
+    @apply shadow-md;
+    border-color: rgb(219 112 147 / 0.3);
+  }
+  
+  .selection-card.selected {
+    @apply shadow-lg;
+    border-color: var(--primary);
+    background-color: rgb(219 112 147 / 0.05);
+    box-shadow: 0 0 0 2px rgb(219 112 147 / 0.2);
+  }
+  
+  .selection-card .check-overlay {
+    @apply absolute top-3 right-3 flex h-6 w-6 items-center justify-center rounded-full bg-white/90 opacity-0 transition-opacity;
+  }
+  
+  .selection-card:hover .check-overlay,
+  .selection-card.selected .check-overlay {
+    @apply opacity-100;
+  }
+  
+  .selection-card.selected .check-overlay {
+    @apply bg-primary text-white;
+  }
+  
+  /* Contact icon card */
+  .contact-card {
+    @apply flex flex-col items-center gap-3 rounded-2xl bg-white p-6 text-center shadow-md transition-all duration-300;
+  }
+  
+  .contact-card:hover {
+    @apply -translate-y-1 shadow-lg shadow-pink-200/40;
+  }
+  
+  .contact-card .icon-wrapper {
+    @apply flex h-14 w-14 items-center justify-center rounded-full text-white;
+    background: linear-gradient(to bottom right, #db7093, #f472b6);
+  }
+  
+  /* Section divider wave */
+  .wave-divider {
+    @apply w-full overflow-hidden leading-none;
+  }
+  
+  .wave-divider svg {
+    @apply w-full h-auto;
+  }
+  
+  /* Animated underline */
+  .animated-underline {
+    @apply relative;
+  }
+  
+  .animated-underline::after {
+    @apply absolute bottom-0 left-0 h-0.5 w-0 bg-primary transition-all duration-300 content-[''];
+  }
+  
+  .animated-underline:hover::after {
+    @apply w-full;
+  }
+}

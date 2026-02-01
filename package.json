@@ -1,0 +1,26 @@
+{
+  "name": "rah",
+  "version": "1.0.0",
+  "description": "Beauty scheduling system",
+  "private": true,
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "dev": "npm run dev --workspace apps/web",
+    "dev:web": "npm run dev --workspace apps/web",
+    "dev:api": "npm run dev --workspace apps/api",
+    "dev:worker": "npm run dev --workspace apps/worker",
+    "dev:cms": "npm run develop --workspace apps/cms",
+    "build": "npm run build --workspace apps/web && npm run build --workspace apps/api && npm run build --workspace apps/worker",
+    "lint": "npm run lint --workspace apps/web",
+    "prisma:generate": "npm run prisma:generate --workspace packages/db",
+    "prisma:push": "npm run prisma:push --workspace packages/db",
+    "prisma:migrate": "npm run prisma:migrate --workspace packages/db"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs"
+}

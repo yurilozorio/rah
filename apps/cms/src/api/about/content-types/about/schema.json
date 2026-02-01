@@ -1,0 +1,43 @@
+{
+  "kind": "singleType",
+  "collectionName": "abouts",
+  "info": {
+    "singularName": "about",
+    "pluralName": "abouts",
+    "displayName": "About",
+    "description": "About page content"
+  },
+  "options": {
+    "draftAndPublish": false
+  },
+  "attributes": {
+    "title": {
+      "type": "string"
+    },
+    "description": {
+      "type": "richtext"
+    },
+    "mission": {
+      "type": "text"
+    },
+    "values": {
+      "type": "text"
+    },
+    "coverImage": {
+      "type": "media",
+      "multiple": false
+    },
+    "teamTitle": {
+      "type": "string"
+    },
+    "teamSubtitle": {
+      "type": "string"
+    },
+    "proceduresTitle": {
+      "type": "string"
+    },
+    "proceduresSubtitle": {
+      "type": "string"
+    }
+  }
+}

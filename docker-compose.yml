@@ -1,0 +1,104 @@
+services:
+  postgres:
+    image: postgres:16
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: app
+    ports:
+      - "5433:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+  cms:
+    image: node:20
+    working_dir: /app/apps/cms
+    volumes:
+      - .:/app
+      - cms_node_modules:/app/apps/cms/node_modules
+    environment:
+      HOST: 0.0.0.0
+      PORT: 1337
+      DATABASE_CLIENT: postgres
+      DATABASE_HOST: postgres
+      DATABASE_PORT: 5432
+      DATABASE_NAME: app
+      DATABASE_USERNAME: postgres
+      DATABASE_PASSWORD: postgres
+      DATABASE_SSL: "false"
+      STRAPI_TELEMETRY_DISABLED: "true"
+    command: sh -c "npm install --include=optional && npm install --no-save @swc/core-linux-arm64-gnu@1.7.23 @rollup/rollup-linux-arm64-gnu@4.57.1 && npm rebuild @swc/core && npm run develop"
+    ports:
+      - "1337:1337"
+    depends_on:
+      - postgres
+
+  api:
+    image: node:20
+    working_dir: /app
+    volumes:
+      - .:/app
+      - api_node_modules:/app/node_modules
+      - api_app_node_modules:/app/apps/api/node_modules
+    environment:
+      PORT: 4000
+      DATABASE_URL: postgresql://postgres:postgres@postgres:5432/app?schema=api
+      JWT_SECRET: change_me
+      STRAPI_URL: http://cms:1337
+      STRAPI_API_TOKEN: 56b399c1b73036ba78f4c3e6aa8dbdcb58ad8af86e2459bfaf4b04bb264f5f91025ce5b2b074bd7102cfa62c27c29e330f0601badd115ae7115c0eb7134fa8c879f503c0e63411e9923063d685f5e45a1bb61cdaa4ef0599d523befe3482b6dee42993161b907e0caeaf09fa0a76ab9d82ee56b36e120c65d46cce4def4576a4
+      WHATSAPP_ACCESS_TOKEN: ""
+      WHATSAPP_PHONE_NUMBER_ID: ""
+      WHATSAPP_BUSINESS_ACCOUNT_ID: ""
+      WHATSAPP_TEMPLATE_CONFIRMATION: ""
+      WHATSAPP_TEMPLATE_REMINDER: ""
+      TIMEZONE: America/Sao_Paulo
+      BUSINESS_START_MIN: 540
+      BUSINESS_END_MIN: 1140
+    command: sh -c "npm install && npx prisma db push --schema packages/db/prisma/schema.prisma --accept-data-loss && npm run prisma:generate --workspace packages/db && npm run build --workspace packages/db && npm run dev --workspace apps/api"
+    ports:
+      - "4000:4000"
+    depends_on:
+      - postgres
+      - cms
+
+  worker:
+    image: node:20
+    working_dir: /app
+    volumes:
+      - .:/app
+      - worker_node_modules:/app/node_modules
+      - worker_app_node_modules:/app/apps/worker/node_modules
+    environment:
+      DATABASE_URL: postgresql://postgres:postgres@postgres:5432/app?schema=api
+      WHATSAPP_ACCESS_TOKEN: ""
+      WHATSAPP_PHONE_NUMBER_ID: ""
+      WHATSAPP_TEMPLATE_REMINDER: ""
+      TIMEZONE: America/Sao_Paulo
+    command: sh -c "npm install && npm run prisma:generate --workspace packages/db && npm run build --workspace packages/db && npm run dev --workspace apps/worker"
+    depends_on:
+      - postgres
+
+  web:
+    image: node:20
+    working_dir: /app
+    volumes:
+      - .:/app
+      - web_node_modules:/app/apps/web/node_modules
+    environment:
+      NEXT_PUBLIC_STRAPI_URL: http://localhost:1337
+      STRAPI_URL_INTERNAL: http://cms:1337
+      NEXT_PUBLIC_API_URL: http://localhost:4000
+    command: sh -c "npm --prefix /app/apps/web install --no-package-lock && npm --prefix /app/apps/web run dev -- --hostname 0.0.0.0 --port 3000 --webpack"
+    ports:
+      - "3000:3000"
+    depends_on:
+      - api
+
+volumes:
+  postgres_data:
+  api_node_modules:
+  api_app_node_modules:
+  worker_node_modules:
+  worker_app_node_modules:
+  web_node_modules:
+  cms_node_modules:

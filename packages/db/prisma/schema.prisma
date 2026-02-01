@@ -1,0 +1,110 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id             String    @id @default(cuid())
+  name           String
+  email          String?   @unique  // Only required for ADMIN
+  phone          String    @unique
+  passwordHash   String?   // Only for ADMIN users
+  role           Role      @default(USER)
+  strapiClientId String?   // Strapi Client documentId for CMS integration
+  appointments   Appointment[]
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+}
+
+// Legacy model - kept for backwards compatibility during migration
+model ServiceAvailability {
+  id                 String   @id @default(cuid())
+  serviceId          Int
+  weekday            Int
+  startMinute        Int
+  endMinute          Int
+  slotIntervalMinutes Int      @default(30)
+  isActive           Boolean  @default(true)
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+}
+
+// Calendly-style availability models (global only)
+model AvailabilitySchedule {
+  id          String   @id @default(cuid())
+  weekday     Int      @unique // 0-6 (Sunday-Saturday)
+  isAvailable Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  timeWindows AvailabilityTimeWindow[]
+}
+
+// Blocked dates - specific days when availability is overridden
+model BlockedDate {
+  id        String   @id @default(cuid())
+  date      DateTime @db.Date  // The blocked date (date only, no time)
+  reason    String?            // Optional reason (e.g., "Holiday", "Vacation")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([date])
+}
+
+model AvailabilityTimeWindow {
+  id          String @id @default(cuid())
+  scheduleId  String
+  startMinute Int    // minutes from midnight (e.g., 540 = 9:00 AM)
+  endMinute   Int    // minutes from midnight (e.g., 1020 = 5:00 PM)
+
+  schedule AvailabilitySchedule @relation(fields: [scheduleId], references: [id], onDelete: Cascade)
+}
+
+model Appointment {
+  id                 String             @id @default(cuid())
+  userId             String
+  serviceId          Int
+  serviceName        String
+  serviceDurationMin Int
+  servicePrice       Int
+  startAt            DateTime
+  endAt              DateTime
+  status             AppointmentStatus  @default(BOOKED)
+  notes              String?
+  createdAt          DateTime           @default(now())
+  updatedAt          DateTime           @updatedAt
+
+  user       User               @relation(fields: [userId], references: [id])
+  events     AppointmentEvent[]
+
+  @@index([startAt, endAt])
+}
+
+model AppointmentEvent {
+  id            String               @id @default(cuid())
+  appointmentId String
+  type          AppointmentEventType
+  createdAt     DateTime             @default(now())
+
+  appointment Appointment @relation(fields: [appointmentId], references: [id])
+}
+
+enum Role {
+  USER
+  ADMIN
+}
+
+enum AppointmentStatus {
+  BOOKED
+  CANCELLED
+}
+
+enum AppointmentEventType {
+  CONFIRMATION_SENT
+  REMINDER_SENT
+  CANCELLED
+}

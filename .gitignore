@@ -1,0 +1,138 @@
+# ==============================================
+# Dependencies
+# ==============================================
+node_modules
+.pnp
+.pnp.*
+.yarn/*
+!.yarn/patches
+!.yarn/plugins
+!.yarn/releases
+!.yarn/versions
+!.yarn/cache
+!.yarn/unplugged
+!.yarn/sdks
+.npm-cache
+.node_history
+
+# ==============================================
+# Build outputs
+# ==============================================
+dist
+build
+.next
+out
+*.tsbuildinfo
+
+# ==============================================
+# Environment files
+# ==============================================
+.env
+.env.*
+!env.production.example
+
+# ==============================================
+# Logs
+# ==============================================
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+logs
+pids
+*.pid
+
+# ==============================================
+# Testing
+# ==============================================
+coverage
+lib-cov
+lcov.info
+results
+
+# ==============================================
+# OS files
+# ==============================================
+.DS_Store
+.AppleDouble
+.LSOverride
+.Spotlight-V100
+.Trashes
+._*
+Icon
+*~
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+
+# ==============================================
+# IDE / Editors
+# ==============================================
+.idea
+.vscode
+nbproject
+*.swp
+*.swo
+*.swn
+*.swm
+*#
+
+# ==============================================
+# Next.js
+# ==============================================
+next-env.d.ts
+.vercel
+
+# ==============================================
+# Strapi
+# ==============================================
+.strapi
+.strapi-updater.json
+.strapi-cloud.json
+license.txt
+exports
+apps/cms/public/uploads/*
+!apps/cms/public/uploads/.gitkeep
+
+# ==============================================
+# Misc
+# ==============================================
+.tmp
+*.pem
+ssl
+.eslintcache
+
+# ==============================================
+# Archives & binaries
+# ==============================================
+*.7z
+*.gz
+*.iso
+*.jar
+*.rar
+*.tar
+*.zip
+*.dmg
+*.cab
+*.msi
+*.msm
+*.msp
+*.com
+*.class
+*.dll
+*.exe
+*.o
+*.seed
+*.so
+*.out
+
+# ==============================================
+# Data files (be careful with these)
+# ==============================================
+*.csv
+*.dat
+*.sql
+*.sqlite
+*.sqlite3
