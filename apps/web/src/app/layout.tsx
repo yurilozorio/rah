@@ -37,8 +37,8 @@ export default async function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  const homeResponse = await fetchStrapi<{ data: { id: number; attributes: HomeContent } }>("/api/home");
-  const contactResponse = await fetchStrapi<{ data: { id: number; attributes: ContactContent } }>("/api/contact");
+  const homeResponse = await fetchStrapi<{ id: number; attributes: HomeContent }>("/api/home");
+  const contactResponse = await fetchStrapi<{ id: number; attributes: ContactContent }>("/api/contact");
   const home = normalizeSingle(homeResponse.data);
   const contact = normalizeSingle(contactResponse.data);
 

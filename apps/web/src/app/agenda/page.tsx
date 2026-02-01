@@ -27,17 +27,29 @@ type Slot = {
   label: string;
 };
 
-const strapiBaseUrl =
-  process.env.NEXT_PUBLIC_STRAPI_URL || "http://localhost:1337";
+const getStrapiBaseUrl = () => {
+  const url = process.env.NEXT_PUBLIC_STRAPI_URL;
+  // In production, use relative URLs via nginx (ignore placeholder)
+  if (process.env.NODE_ENV === "production") {
+    if (url && !url.includes("placeholder")) return url;
+    return ""; // Relative - nginx proxies /cms/ to Strapi
+  }
+  return url || "http://localhost:1337";
+};
 
 const getStrapiMediaUrl = (url?: string | null) => {
   if (!url) return null;
   if (url.startsWith("http")) return url;
-  return `${strapiBaseUrl}${url}`;
+  const base = getStrapiBaseUrl();
+  return base ? `${base}${url}` : url; // Use relative URL in production
 };
 
 const fetchServices = async (): Promise<Service[]> => {
-  const response = await fetch(`${strapiBaseUrl}/api/services?sort=order:asc&populate=coverImage`);
+  const strapiBaseUrl = getStrapiBaseUrl();
+  const apiPath = "/api/services?sort=order:asc&populate=coverImage";
+  // In production, use /cms/ route which nginx proxies to Strapi
+  const url = strapiBaseUrl ? `${strapiBaseUrl}${apiPath}` : `/cms${apiPath}`;
+  const response = await fetch(url);
   const json = await response.json();
   return (json?.data ?? []).map((item: any) => {
     const normalized = item?.attributes

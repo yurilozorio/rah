@@ -28,16 +28,16 @@ type HomeContent = {
   servicesSubtitle?: string;
 };
 
-const imageBaseUrl = getStrapiAssetBaseUrl();
-
 const getImageUrl = (media?: StrapiMedia | string | null) => {
   const url = typeof media === "string" ? media : getStrapiMediaUrl(media);
-  return url ? `${imageBaseUrl}${url}` : null;
+  if (!url) return null;
+  const baseUrl = getStrapiAssetBaseUrl();
+  return baseUrl ? `${baseUrl}${url}` : url;
 };
 
 export default async function ServicesPage() {
-  const homeResponse = await fetchStrapi<{ data: { id: number; attributes: HomeContent } }>("/api/home");
-  const servicesResponse = await fetchStrapi<{ data: { id: number; attributes: Service }[] }>(
+  const homeResponse = await fetchStrapi<{ id: number; attributes: HomeContent }>("/api/home");
+  const servicesResponse = await fetchStrapi<{ id: number; attributes: Service }[]>(
     "/api/services?sort=order:asc&populate=*"
   );
   const home = normalizeSingle(homeResponse.data);

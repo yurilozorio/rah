@@ -1,6 +1,9 @@
+"use client";
+
 import Link from "next/link";
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
-import { Settings2, Menu } from "lucide-react";
+import { Settings2, Menu, X } from "lucide-react";
 
 const navItems = [
   { href: "/services", label: "Serviços" },
@@ -19,6 +22,8 @@ export const SiteHeader = ({
   ctaLabel?: string;
   ctaLink?: string;
 }) => {
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+
   return (
     <header className="sticky top-0 z-50 border-b border-pink-100 bg-white/80 backdrop-blur-md">
       <div className="mx-auto flex w-full max-w-6xl items-center justify-between px-4 py-4">
@@ -40,22 +45,50 @@ export const SiteHeader = ({
         </nav>
         <div className="flex items-center gap-3">
           <Link
-            href="/admin"
+            href="/painel"
             className="flex h-9 w-9 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-pink-50 hover:text-primary"
             title="Admin"
           >
             <Settings2 className="h-5 w-5" />
           </Link>
           {ctaLabel ? (
-            <Button asChild className="bg-gradient-to-r from-primary to-accent-warm text-white shadow-md shadow-pink-200/50 hover:shadow-lg hover:shadow-pink-300/50 transition-all">
+            <Button asChild className="hidden sm:inline-flex bg-gradient-to-r from-primary to-accent-warm text-white shadow-md shadow-pink-200/50 hover:shadow-lg hover:shadow-pink-300/50 transition-all">
               <Link href={ctaLink ?? "/agenda"}>{ctaLabel}</Link>
             </Button>
           ) : null}
-          <button className="flex h-9 w-9 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-pink-50 hover:text-primary md:hidden">
-            <Menu className="h-5 w-5" />
+          <button 
+            onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+            className="flex h-9 w-9 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-pink-50 hover:text-primary md:hidden"
+          >
+            {mobileMenuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
           </button>
         </div>
       </div>
+      
+      {/* Mobile menu */}
+      {mobileMenuOpen && (
+        <nav className="border-t border-pink-100 bg-white px-4 py-4 md:hidden">
+          <div className="flex flex-col gap-4">
+            {navItems.map((item) => (
+              <Link
+                key={item.href}
+                href={item.href}
+                onClick={() => setMobileMenuOpen(false)}
+                className="text-muted-foreground transition-colors hover:text-primary py-2"
+              >
+                {item.label}
+              </Link>
+            ))}
+            {ctaLabel ? (
+              <Button asChild className="mt-2 bg-gradient-to-r from-primary to-accent-warm text-white">
+                <Link href={ctaLink ?? "/agenda"} onClick={() => setMobileMenuOpen(false)}>
+                  {ctaLabel}
+                </Link>
+              </Button>
+            ) : null}
+          </div>
+        </nav>
+      )}
     </header>
   );
 };

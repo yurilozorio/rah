@@ -12,7 +12,8 @@
     "@rah/db": "1.0.0",
     "date-fns-tz": "^3.1.3",
     "dotenv": "^16.4.7",
-    "pg-boss": "^10.1.5"
+    "pg-boss": "^10.1.5",
+    "zod": "^3.24.1"
   },
   "devDependencies": {
     "@types/node": "^22.12.0",

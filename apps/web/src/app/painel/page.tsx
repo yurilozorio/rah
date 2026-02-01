@@ -76,7 +76,7 @@ export default function AdminPage() {
             <h2 className="text-lg font-semibold">Agenda</h2>
             <p className="text-sm text-muted-foreground">Visualize todos os agendamentos.</p>
             <Button asChild variant="outline">
-              <Link href="/admin/agenda">Abrir agenda</Link>
+              <Link href="/painel/agenda">Abrir agenda</Link>
             </Button>
           </CardContent>
         </Card>
@@ -85,7 +85,7 @@ export default function AdminPage() {
             <h2 className="text-lg font-semibold">Calendário</h2>
             <p className="text-sm text-muted-foreground">Visão mensal da agenda.</p>
             <Button asChild variant="outline">
-              <Link href="/admin/calendar">Abrir calendário</Link>
+              <Link href="/painel/calendar">Abrir calendário</Link>
             </Button>
           </CardContent>
         </Card>
@@ -94,7 +94,7 @@ export default function AdminPage() {
             <h2 className="text-lg font-semibold">Disponibilidade</h2>
             <p className="text-sm text-muted-foreground">Gerencie horários por serviço.</p>
             <Button asChild variant="outline">
-              <Link href="/admin/availability">Configurar horários</Link>
+              <Link href="/painel/availability">Configurar horários</Link>
             </Button>
           </CardContent>
         </Card>
@@ -103,7 +103,7 @@ export default function AdminPage() {
             <h2 className="text-lg font-semibold">Fidelidade</h2>
             <p className="text-sm text-muted-foreground">Ajuste de pontos.</p>
             <Button asChild variant="outline">
-              <Link href="/admin/loyalty">Gerenciar pontos</Link>
+              <Link href="/painel/loyalty">Gerenciar pontos</Link>
             </Button>
           </CardContent>
         </Card>
@@ -112,7 +112,7 @@ export default function AdminPage() {
             <h2 className="text-lg font-semibold">Conteúdo (Strapi)</h2>
             <p className="text-sm text-muted-foreground">Gerencie serviços, depoimentos, equipe e fotos.</p>
             <Button asChild>
-              <a href="http://localhost:1337/admin" target="_blank" rel="noreferrer">
+              <a href="/admin" target="_blank" rel="noreferrer">
                 Abrir Strapi Admin
               </a>
             </Button>

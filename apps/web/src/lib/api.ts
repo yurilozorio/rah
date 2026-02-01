@@ -1,12 +1,27 @@
-const getApiBaseUrl = () =>
-  process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000";
+const getApiBaseUrl = () => {
+  const apiUrl = process.env.NEXT_PUBLIC_API_URL;
+  
+  // In production, use relative URLs (nginx proxies /api/ to the API server)
+  // Ignore placeholder values from Docker build
+  if (process.env.NODE_ENV === "production") {
+    if (apiUrl && !apiUrl.includes("placeholder")) {
+      return apiUrl;
+    }
+    return ""; // Empty - use relative URLs
+  }
+  
+  // In development
+  return apiUrl || "http://localhost:4000";
+};
 
 export const apiFetch = async <T>(
   path: string,
   options: RequestInit = {},
   token?: string
 ) => {
-  const url = new URL(path, getApiBaseUrl());
+  const baseUrl = getApiBaseUrl();
+  // Handle both absolute URLs (development) and relative URLs (production)
+  const url = baseUrl ? new URL(path, baseUrl).toString() : `/api${path}`;
   
   // Only set Content-Type for requests with a body
   const headers: Record<string, string> = {
@@ -18,7 +33,7 @@ export const apiFetch = async <T>(
     headers["Content-Type"] = "application/json";
   }
 
-  const response = await fetch(url.toString(), {
+  const response = await fetch(url, {
     ...options,
     headers
   });

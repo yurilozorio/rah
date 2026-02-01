@@ -37,21 +37,21 @@ type ProcedureService = {
   coverImage?: StrapiMedia;
 };
 
-const imageBaseUrl = getStrapiAssetBaseUrl();
-
 const getImageUrl = (media?: StrapiMedia | string | null) => {
   const url = typeof media === "string" ? media : getStrapiMediaUrl(media);
-  return url ? `${imageBaseUrl}${url}` : null;
+  if (!url) return null;
+  const baseUrl = getStrapiAssetBaseUrl();
+  return baseUrl ? `${baseUrl}${url}` : url; // Use relative URL if no base
 };
 
 export default async function AboutPage() {
-  const aboutResponse = await fetchStrapi<{ data: { id: number; attributes: AboutContent } }>(
+  const aboutResponse = await fetchStrapi<{ id: number; attributes: AboutContent }>(
     "/api/about?populate=*"
   );
-  const teamResponse = await fetchStrapi<{ data: { id: number; attributes: TeamMember }[] }>(
+  const teamResponse = await fetchStrapi<{ id: number; attributes: TeamMember }[]>(
     "/api/team-members?sort=order:asc&populate=*"
   );
-  const proceduresResponse = await fetchStrapi<{ data: { id: number; attributes: ProcedureService }[] }>(
+  const proceduresResponse = await fetchStrapi<{ id: number; attributes: ProcedureService }[]>(
     "/api/services?sort=order:asc&populate=*"
   );
 

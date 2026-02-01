@@ -2,6 +2,7 @@ import PgBoss from "pg-boss";
 import { config } from "./config.js";
 
 let boss: PgBoss | null = null;
+let bossStarted = false;
 
 export const getBoss = () => {
   if (!boss) {
@@ -15,8 +16,9 @@ export const getBoss = () => {
 
 export const startBoss = async () => {
   const instance = getBoss();
-  if (!instance.isStarted) {
+  if (!bossStarted) {
     await instance.start();
+    bossStarted = true;
   }
   return instance;
 };

@@ -42,8 +42,14 @@ type User = {
   phone: string;
 };
 
-const strapiBaseUrl =
-  process.env.NEXT_PUBLIC_STRAPI_URL || "http://localhost:1337";
+const getStrapiBaseUrl = () => {
+  const url = process.env.NEXT_PUBLIC_STRAPI_URL;
+  if (process.env.NODE_ENV === "production") {
+    if (url && !url.includes("placeholder")) return url;
+    return ""; // Use relative URLs via /cms/
+  }
+  return url || "http://localhost:1337";
+};
 
 export default function AdminAgendaPage() {
   const { token, user, logout } = useAuth();
@@ -78,7 +84,9 @@ export default function AdminAgendaPage() {
   // Fetch services from Strapi
   const fetchServices = useCallback(async () => {
     try {
-      const response = await fetch(`${strapiBaseUrl}/api/services?sort=order:asc`);
+      const baseUrl = getStrapiBaseUrl();
+      const url = baseUrl ? `${baseUrl}/api/services?sort=order:asc` : "/cms/api/services?sort=order:asc";
+      const response = await fetch(url);
       if (!response.ok) throw new Error("Failed to fetch services");
       const data = await response.json();
       const serviceList: Service[] = (data.data || []).map((item: any) => ({

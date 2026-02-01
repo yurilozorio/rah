@@ -7,6 +7,7 @@ export type DaySchedule = {
   weekday: number;
   isAvailable: boolean;
   timeWindows: TimeWindow[];
+  isInherited?: boolean;
 };
 
 export type WeekSchedule = DaySchedule[];

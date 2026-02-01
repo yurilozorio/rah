@@ -18,8 +18,23 @@ const getStrapiBaseUrl = () =>
   process.env.NEXT_PUBLIC_STRAPI_URL ||
   "http://localhost:1337";
 
-export const getStrapiAssetBaseUrl = () =>
-  process.env.NEXT_PUBLIC_STRAPI_URL || process.env.STRAPI_URL_INTERNAL || "http://localhost:1337";
+export const getStrapiAssetBaseUrl = () => {
+  // For client-side image URLs in production, use relative URLs
+  // since nginx serves /uploads/ directly from the persistent volume
+  const publicUrl = process.env.NEXT_PUBLIC_STRAPI_URL;
+  
+  // In production, always use relative URLs (ignore placeholder values)
+  if (process.env.NODE_ENV === "production") {
+    // Only use NEXT_PUBLIC_STRAPI_URL if it's set to a real value (not placeholder)
+    if (publicUrl && !publicUrl.includes("placeholder")) {
+      return publicUrl;
+    }
+    return ""; // Relative URLs - nginx serves /uploads/
+  }
+  
+  // In development, use the configured URL or fallback
+  return publicUrl || process.env.STRAPI_URL_INTERNAL || "http://localhost:1337";
+};
 
 export const fetchStrapi = async <T>(path: string, options?: RequestInit) => {
   const url = new URL(path, getStrapiBaseUrl());

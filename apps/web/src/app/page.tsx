@@ -57,11 +57,11 @@ type ContactContent = {
   email?: string;
 };
 
-const imageBaseUrl = getStrapiAssetBaseUrl();
-
 const getImageUrl = (media?: StrapiMedia | string | null) => {
   const url = typeof media === "string" ? media : getStrapiMediaUrl(media);
-  return url ? `${imageBaseUrl}${url}` : null;
+  if (!url) return null;
+  const baseUrl = getStrapiAssetBaseUrl();
+  return baseUrl ? `${baseUrl}${url}` : url;
 };
 
 function StarRating({ rating = 5 }: { rating?: number }) {
@@ -79,16 +79,16 @@ function StarRating({ rating = 5 }: { rating?: number }) {
 }
 
 export default async function Home() {
-  const homeResponse = await fetchStrapi<{ data: { id: number; attributes: HomeContent } }>(
+  const homeResponse = await fetchStrapi<{ id: number; attributes: HomeContent }>(
     "/api/home?populate=*"
   );
-  const servicesResponse = await fetchStrapi<{ data: { id: number; attributes: Service }[] }>(
+  const servicesResponse = await fetchStrapi<{ id: number; attributes: Service }[]>(
     "/api/services?sort=order:asc&populate=*"
   );
-  const testimonialsResponse = await fetchStrapi<{ data: { id: number; attributes: Testimonial }[] }>(
+  const testimonialsResponse = await fetchStrapi<{ id: number; attributes: Testimonial }[]>(
     "/api/testimonials?sort=order:asc&populate=*"
   );
-  const contactResponse = await fetchStrapi<{ data: { id: number; attributes: ContactContent } }>(
+  const contactResponse = await fetchStrapi<{ id: number; attributes: ContactContent }>(
     "/api/contact"
   );
 

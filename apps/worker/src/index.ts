@@ -14,8 +14,12 @@ const boss = new PgBoss({
 
 await boss.start();
 
-boss.work("appointment-reminder", async (job) => {
-  const appointmentId = job.data?.appointmentId as string | undefined;
+interface ReminderJobData {
+  appointmentId?: string;
+}
+
+boss.work<ReminderJobData>("appointment-reminder", { batchSize: 1 }, async ([job]) => {
+  const appointmentId = job.data?.appointmentId;
   if (!appointmentId) return;
 
   const appointment = await prisma.appointment.findUnique({

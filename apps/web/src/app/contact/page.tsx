@@ -17,7 +17,7 @@ type ContactContent = {
 };
 
 export default async function ContactPage() {
-  const response = await fetchStrapi<{ data: { id: number; attributes: ContactContent } }>("/api/contact");
+  const response = await fetchStrapi<{ id: number; attributes: ContactContent }>("/api/contact");
   const contact = normalizeSingle(response.data);
 
   return (

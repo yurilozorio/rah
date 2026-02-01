@@ -17,11 +17,11 @@ type Service = {
   coverImage?: StrapiMedia;
 };
 
-const imageBaseUrl = getStrapiAssetBaseUrl();
-
 const getImageUrl = (media?: StrapiMedia | string | null) => {
   const url = typeof media === "string" ? media : getStrapiMediaUrl(media);
-  return url ? `${imageBaseUrl}${url}` : null;
+  if (!url) return null;
+  const baseUrl = getStrapiAssetBaseUrl();
+  return baseUrl ? `${baseUrl}${url}` : url;
 };
 
 // Default benefits for services (could be customized per service in CMS later)
@@ -35,10 +35,10 @@ const defaultBenefits = [
 export default async function ServicePage({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
   
-  const response = await fetchStrapi<{ data: { id: number; attributes: Service }[] }>(
+  const response = await fetchStrapi<{ id: number; attributes: Service }[]>(
     `/api/services?filters[slug][$eq]=${slug}&populate=*`
   );
-  const allServicesResponse = await fetchStrapi<{ data: { id: number; attributes: Service }[] }>(
+  const allServicesResponse = await fetchStrapi<{ id: number; attributes: Service }[]>(
     `/api/services?sort=order:asc&populate=coverImage`
   );
   

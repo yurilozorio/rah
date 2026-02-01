@@ -119,24 +119,17 @@ export default {
       strapi.log.error("Erro ao baixar ou enviar imagens do Google Sites", error);
     }
 
-    const upsertSingle = async (uid: string, data: Record<string, any>) => {
+    // Only CREATE if doesn't exist - don't update existing data
+    const createIfNotExists = async (uid: string, data: Record<string, any>) => {
       const existing = await strapi.documents(uid).findMany({ status: "published" });
       if (Array.isArray(existing) && existing.length > 0) {
-        await Promise.all(
-          existing.map((entry: { documentId: string }) =>
-            strapi.documents(uid).update({
-              documentId: entry.documentId,
-              data,
-              status: "published"
-            })
-          )
-        );
+        // Data already exists - don't overwrite user changes
         return existing[0];
       }
       return strapi.documents(uid).create({ data, status: "published" });
     };
 
-    await upsertSingle("api::home.home", {
+    await createIfNotExists("api::home.home", {
       siteName: "Rayssa Lozorio Estética",
       heroTitle: "Estética que realça sua beleza natural",
       heroSubtitle,
@@ -154,7 +147,7 @@ export default {
       publishedAt: now
     });
 
-    await upsertSingle("api::about.about", {
+    await createIfNotExists("api::about.about", {
       title: "Sobre nós",
       description:
         "Na Rayssa Lozorio Estética, cada atendimento é pensado de forma individual, respeitando a beleza natural, o formato do rosto e as necessidades da sua pele.",
@@ -169,7 +162,7 @@ export default {
       publishedAt: now
     });
 
-    await upsertSingle("api::contact.contact", {
+    await createIfNotExists("api::contact.contact", {
       title: "Contato",
       subtitle: "Fale com a gente para agendar seu horário.",
       instagram: "@rayssalozorio",
@@ -181,11 +174,17 @@ export default {
       publishedAt: now
     });
 
+    // Only create services that don't exist - don't overwrite existing ones
     for (const [index, service] of seedServices.entries()) {
       const coverImage = serviceImages[index]?.id;
       const existing = await strapi
         .documents("api::service.service")
         .findFirst({ filters: { slug: service.slug }, status: "published" });
+
+      // Skip if service already exists
+      if (existing?.documentId) {
+        continue;
+      }
 
       const data = {
         ...service,
@@ -195,35 +194,22 @@ export default {
         publishedAt: now
       };
 
-      if (existing?.documentId) {
-        await strapi.documents("api::service.service").update({
-          documentId: existing.documentId,
-          data,
-          status: "published"
-        });
-      } else {
-        await strapi.documents("api::service.service").create({ data, status: "published" });
-      }
+      await strapi.documents("api::service.service").create({ data, status: "published" });
     }
 
+    // Only create team member if doesn't exist
     const teamExisting = await strapi
       .documents("api::team-member.team-member")
       .findFirst({ filters: { name: "Rayssa Lozorio" }, status: "published" });
-    const teamData = {
-      name: "Rayssa Lozorio",
-      photo: heroImage?.id ?? serviceImages[0]?.id,
-      instagram: "@rayssalozorio",
-      order: 1,
-      publishedAt: now
-    };
-
-    if (teamExisting?.documentId) {
-      await strapi.documents("api::team-member.team-member").update({
-        documentId: teamExisting.documentId,
-        data: teamData,
-        status: "published"
-      });
-    } else {
+    
+    if (!teamExisting?.documentId) {
+      const teamData = {
+        name: "Rayssa Lozorio",
+        photo: heroImage?.id ?? serviceImages[0]?.id,
+        instagram: "@rayssalozorio",
+        order: 1,
+        publishedAt: now
+      };
       await strapi.documents("api::team-member.team-member").create({ data: teamData, status: "published" });
     }
 

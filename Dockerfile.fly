@@ -1,0 +1,143 @@
+# Dockerfile.fly - Single container deployment for Fly.io
+# Runs all services using supervisord
+
+# =============================================================================
+# Stage 1: Build CMS (Strapi)
+# =============================================================================
+FROM node:20-alpine AS cms-builder
+
+WORKDIR /app
+
+RUN apk add --no-cache build-base gcc autoconf automake zlib-dev libpng-dev vips-dev
+
+COPY apps/cms/package*.json ./
+RUN npm install --include=optional
+
+COPY apps/cms ./
+ENV NODE_ENV=production
+RUN npm run build
+
+# =============================================================================
+# Stage 2: Build API
+# =============================================================================
+FROM node:20-alpine AS api-builder
+
+WORKDIR /app
+
+COPY package*.json ./
+COPY packages/db ./packages/db
+COPY apps/api ./apps/api
+
+RUN npm install --workspaces --include-workspace-root
+RUN npm run prisma:generate --workspace packages/db
+RUN npm run build --workspace packages/db
+RUN npm run build --workspace apps/api
+
+# =============================================================================
+# Stage 3: Build Worker
+# =============================================================================
+FROM node:20-alpine AS worker-builder
+
+WORKDIR /app
+
+COPY package*.json ./
+COPY packages/db ./packages/db
+COPY apps/worker ./apps/worker
+
+RUN npm install --workspaces --include-workspace-root
+RUN npm run prisma:generate --workspace packages/db
+RUN npm run build --workspace packages/db
+RUN npm run build --workspace apps/worker
+
+# =============================================================================
+# Stage 4: Build Web (Next.js)
+# =============================================================================
+FROM node:20-alpine AS web-builder
+
+WORKDIR /app
+
+RUN apk add --no-cache libc6-compat
+
+COPY apps/web/package*.json ./
+RUN npm install
+
+COPY apps/web ./
+
+# These will be set at runtime via fly secrets, but we need placeholder values for build
+ARG NEXT_PUBLIC_STRAPI_URL=https://placeholder.fly.dev
+ARG NEXT_PUBLIC_API_URL=https://placeholder.fly.dev/api
+
+ENV NEXT_PUBLIC_STRAPI_URL=$NEXT_PUBLIC_STRAPI_URL
+ENV NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL
+ENV NEXT_TELEMETRY_DISABLED=1
+
+RUN npm run build
+
+# =============================================================================
+# Stage 5: Production runtime
+# =============================================================================
+FROM node:20-alpine AS runner
+
+# Install runtime dependencies
+RUN apk add --no-cache \
+    postgresql16 \
+    postgresql16-contrib \
+    nginx \
+    supervisor \
+    vips-dev \
+    curl \
+    bash
+
+# Create necessary directories
+RUN mkdir -p /data/postgres /data/uploads /run/postgresql /var/log/supervisor \
+    && chown -R postgres:postgres /data/postgres /run/postgresql
+
+WORKDIR /app
+
+# -----------------------------------------------------------------------------
+# Copy CMS
+# -----------------------------------------------------------------------------
+COPY --from=cms-builder /app /app/cms
+RUN mkdir -p /app/cms/public/uploads
+
+# -----------------------------------------------------------------------------
+# Copy API (npm workspaces hoists deps to root node_modules)
+# -----------------------------------------------------------------------------
+COPY --from=api-builder /app/package*.json ./api/
+COPY --from=api-builder /app/packages/db/package.json ./api/packages/db/
+COPY --from=api-builder /app/packages/db/dist ./api/packages/db/dist
+COPY --from=api-builder /app/packages/db/prisma ./api/packages/db/prisma
+COPY --from=api-builder /app/apps/api/package.json ./api/apps/api/
+COPY --from=api-builder /app/apps/api/dist ./api/apps/api/dist
+COPY --from=api-builder /app/node_modules ./api/node_modules
+
+# -----------------------------------------------------------------------------
+# Copy Worker (npm workspaces hoists deps to root node_modules)
+# -----------------------------------------------------------------------------
+COPY --from=worker-builder /app/package*.json ./worker/
+COPY --from=worker-builder /app/packages/db/package.json ./worker/packages/db/
+COPY --from=worker-builder /app/packages/db/dist ./worker/packages/db/dist
+COPY --from=worker-builder /app/packages/db/prisma ./worker/packages/db/prisma
+COPY --from=worker-builder /app/apps/worker/package.json ./worker/apps/worker/
+COPY --from=worker-builder /app/apps/worker/dist ./worker/apps/worker/dist
+COPY --from=worker-builder /app/node_modules ./worker/node_modules
+
+# -----------------------------------------------------------------------------
+# Copy Web
+# -----------------------------------------------------------------------------
+COPY --from=web-builder /app/public ./web/public
+COPY --from=web-builder /app/.next/standalone ./web/
+COPY --from=web-builder /app/.next/static ./web/.next/static
+
+# -----------------------------------------------------------------------------
+# Copy configuration files
+# -----------------------------------------------------------------------------
+COPY fly/supervisord.conf /etc/supervisor/conf.d/supervisord.conf
+COPY fly/nginx.conf /etc/nginx/nginx.conf
+COPY fly/start.sh /app/start.sh
+
+RUN chmod +x /app/start.sh
+
+EXPOSE 8080
+
+CMD ["/app/start.sh"]
