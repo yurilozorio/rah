@@ -96,7 +96,7 @@ export default async function ServicesPage() {
                   </div>
                   
                   {service.description && (
-                    <p className="line-clamp-2 text-xs sm:text-sm text-muted-foreground hidden sm:block">{service.description}</p>
+                    <p className="line-clamp-2 text-xs sm:text-sm text-muted-foreground hidden sm:block whitespace-pre-line">{service.description}</p>
                   )}
                   
                   <div className="flex flex-col sm:flex-row gap-2 sm:gap-3">

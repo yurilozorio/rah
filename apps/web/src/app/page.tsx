@@ -197,7 +197,7 @@ export default async function Home() {
                     </div>
                   </div>
                   {service.description ? (
-                    <p className="line-clamp-2 text-xs sm:text-sm text-muted-foreground hidden sm:block">{service.description}</p>
+                    <p className="line-clamp-2 text-xs sm:text-sm text-muted-foreground hidden sm:block whitespace-pre-line">{service.description}</p>
                   ) : null}
                   <Button asChild size="sm" className="bg-primary/10 text-primary hover:bg-primary hover:text-white transition-colors text-xs sm:text-sm h-8 sm:h-10">
                     <Link href={`/services/${service.slug}`}>Ver detalhes</Link>

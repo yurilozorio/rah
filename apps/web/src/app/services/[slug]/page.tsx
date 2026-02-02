@@ -104,7 +104,7 @@ export default async function ServicePage({ params }: { params: Promise<{ slug: 
               </h1>
               
               {service.description && (
-                <p className="text-lg text-muted-foreground leading-relaxed">
+                <p className="text-lg text-muted-foreground leading-relaxed whitespace-pre-line">
                   {service.description}
                 </p>
               )}
