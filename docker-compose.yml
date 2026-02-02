@@ -46,9 +46,9 @@ services:
       JWT_SECRET: change_me
       STRAPI_URL: http://cms:1337
       STRAPI_API_TOKEN: 56b399c1b73036ba78f4c3e6aa8dbdcb58ad8af86e2459bfaf4b04bb264f5f91025ce5b2b074bd7102cfa62c27c29e330f0601badd115ae7115c0eb7134fa8c879f503c0e63411e9923063d685f5e45a1bb61cdaa4ef0599d523befe3482b6dee42993161b907e0caeaf09fa0a76ab9d82ee56b36e120c65d46cce4def4576a4
-      WHATSAPP_ACCESS_TOKEN: ""
-      WHATSAPP_PHONE_NUMBER_ID: ""
-      WHATSAPP_BUSINESS_ACCOUNT_ID: ""
+      WHATSAPP_ACCESS_TOKEN: "EAAblCK0Y4sABQnLSFvTwftBlgOV4CrJUZCkZBBbbbMpZBytqfIwtDOtaSPSVlOFPiFAEXISbXwpPCZBNUFloqitZCuOMrnXHI4khNvP1yIhwZBqdq20nZApH2Y9ihMlfrZBiS1MjetNPsHINQOowQzomQMOHrS5FKoMpOOOsiLinsEwul83E9CoVq3KcHk1ZBawZDZD"
+      WHATSAPP_PHONE_NUMBER_ID: "890443667496864"
+      WHATSAPP_BUSINESS_ACCOUNT_ID: "1370758968083987"
       WHATSAPP_TEMPLATE_CONFIRMATION: ""
       WHATSAPP_TEMPLATE_REMINDER: ""
       TIMEZONE: America/Sao_Paulo
@@ -70,13 +70,17 @@ services:
       - worker_app_node_modules:/app/apps/worker/node_modules
     environment:
       DATABASE_URL: postgresql://postgres:postgres@postgres:5432/app?schema=api
-      WHATSAPP_ACCESS_TOKEN: ""
-      WHATSAPP_PHONE_NUMBER_ID: ""
+      STRAPI_URL: http://cms:1337
+      STRAPI_API_TOKEN: 56b399c1b73036ba78f4c3e6aa8dbdcb58ad8af86e2459bfaf4b04bb264f5f91025ce5b2b074bd7102cfa62c27c29e330f0601badd115ae7115c0eb7134fa8c879f503c0e63411e9923063d685f5e45a1bb61cdaa4ef0599d523befe3482b6dee42993161b907e0caeaf09fa0a76ab9d82ee56b36e120c65d46cce4def4576a4
+      WHATSAPP_ACCESS_TOKEN: "EAAblCK0Y4sABQnLSFvTwftBlgOV4CrJUZCkZBBbbbMpZBytqfIwtDOtaSPSVlOFPiFAEXISbXwpPCZBNUFloqitZCuOMrnXHI4khNvP1yIhwZBqdq20nZApH2Y9ihMlfrZBiS1MjetNPsHINQOowQzomQMOHrS5FKoMpOOOsiLinsEwul83E9CoVq3KcHk1ZBawZDZD"
+      WHATSAPP_PHONE_NUMBER_ID: "890443667496864"
+      WHATSAPP_BUSINESS_ACCOUNT_ID: "1370758968083987"
       WHATSAPP_TEMPLATE_REMINDER: ""
       TIMEZONE: America/Sao_Paulo
     command: sh -c "npm install && npm run prisma:generate --workspace packages/db && npm run build --workspace packages/db && npm run dev --workspace apps/worker"
     depends_on:
       - postgres
+      - cms
 
   web:
     image: node:20

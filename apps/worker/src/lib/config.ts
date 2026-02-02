@@ -2,6 +2,8 @@ import { z } from "zod";
 
 const envSchema = z.object({
   DATABASE_URL: z.string(),
+  STRAPI_URL: z.string(),
+  STRAPI_API_TOKEN: z.string(),
   WHATSAPP_ACCESS_TOKEN: z.string().optional(),
   WHATSAPP_PHONE_NUMBER_ID: z.string().optional(),
   WHATSAPP_TEMPLATE_REMINDER: z.string().optional(),

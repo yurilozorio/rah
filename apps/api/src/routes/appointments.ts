@@ -4,14 +4,25 @@ import { addMinutes } from "date-fns";
 import { formatInTimeZone, fromZonedTime } from "date-fns-tz";
 import { prisma } from "../lib/db.js";
 import { config } from "../lib/config.js";
-import { fetchServiceById, addLoyaltyPoints, findClientByPhone, createClient } from "../lib/strapi.js";
+import { 
+  fetchServiceById, 
+  addLoyaltyPoints, 
+  findClientByPhone, 
+  createClient,
+  fetchNotificationSettings,
+  fetchContactInfo,
+  type NotificationSettings,
+  type ContactInfo
+} from "../lib/strapi.js";
 import {
   buildSlots,
   buildSlotsFromSchedule,
   WeekSchedule
 } from "../lib/availability.js";
 import { getBoss } from "../lib/boss.js";
-import { sendWhatsAppTemplate } from "../lib/whatsapp.js";
+import { sendWhatsAppText } from "../lib/whatsapp.js";
+import { generateGoogleCalendarLink } from "../lib/calendar.js";
+import { generateGoogleMapsLink } from "../lib/maps.js";
 
 const createSchema = z.object({
   serviceId: z.number(),
@@ -31,6 +42,103 @@ const batchCreateSchema = z.object({
 
 // Default slot interval (30 minutes)
 const DEFAULT_SLOT_INTERVAL = 30;
+
+// Helper to compose WhatsApp confirmation message from template
+type ComposeMessageParams = {
+  template: string;
+  name: string;
+  services: string;
+  date: string;
+  time: string;
+  totalDuration: number;
+  totalPrice: number;
+  mapLink: string | null;
+  calendarLink: string;
+};
+
+function composeMessage(params: ComposeMessageParams): string {
+  const { template, name, services, date, time, totalDuration, totalPrice, mapLink, calendarLink } = params;
+  
+  return template
+    .replace(/\{\{name\}\}/g, name)
+    .replace(/\{\{services\}\}/g, services)
+    .replace(/\{\{date\}\}/g, date)
+    .replace(/\{\{time\}\}/g, time)
+    .replace(/\{\{totalDuration\}\}/g, String(totalDuration))
+    .replace(/\{\{totalPrice\}\}/g, totalPrice.toFixed(2).replace(".", ","))
+    .replace(/\{\{mapLink\}\}/g, mapLink ?? "")
+    .replace(/\{\{calendarLink\}\}/g, calendarLink);
+}
+
+// Helper to send WhatsApp confirmation using session message
+async function sendConfirmationMessage(params: {
+  phone: string;
+  userName: string;
+  services: Array<{ name: string; durationMinutes: number; price: number }>;
+  startAt: Date;
+  endAt: Date;
+  notificationSettings: NotificationSettings | null;
+  contactInfo: ContactInfo | null;
+  log: { info: (msg: any, ...args: any[]) => void; error: (msg: any, ...args: any[]) => void };
+}): Promise<{ sent: boolean; reason?: string }> {
+  const { phone, userName, services, startAt, endAt, notificationSettings, contactInfo, log } = params;
+
+  if (!notificationSettings?.confirmationMessageTemplate) {
+    log.info("No confirmation template configured, skipping WhatsApp");
+    return { sent: false, reason: "no_template" };
+  }
+
+  const dateLabel = formatInTimeZone(startAt, config.TIMEZONE, "dd/MM/yyyy");
+  const timeLabel = formatInTimeZone(startAt, config.TIMEZONE, "HH:mm");
+  const serviceNames = services.map(s => s.name).join(", ");
+  const totalDuration = services.reduce((sum, s) => sum + s.durationMinutes, 0);
+  const totalPrice = services.reduce((sum, s) => sum + s.price, 0);
+
+  // Generate map link
+  const mapLink = generateGoogleMapsLink({
+    latitude: notificationSettings.businessLatitude,
+    longitude: notificationSettings.businessLongitude,
+    address: contactInfo?.address
+  });
+
+  // Generate calendar link
+  const calendarLink = generateGoogleCalendarLink({
+    title: `Agendamento - ${notificationSettings.businessName}`,
+    startAt,
+    endAt,
+    location: contactInfo?.address ?? undefined,
+    description: `Procedimentos: ${serviceNames}`,
+    timezone: config.TIMEZONE
+  });
+
+  // Compose message
+  const message = composeMessage({
+    template: notificationSettings.confirmationMessageTemplate,
+    name: userName,
+    services: serviceNames,
+    date: dateLabel,
+    time: timeLabel,
+    totalDuration,
+    totalPrice,
+    mapLink,
+    calendarLink
+  });
+
+  // Send via WhatsApp session message
+  const result = await sendWhatsAppText(phone, message);
+
+  if ("skipped" in result) {
+    log.info("WhatsApp credentials not configured, skipping");
+    return { sent: false, reason: "no_credentials" };
+  }
+
+  if ("failed" in result) {
+    log.info({ reason: result.reason, error: result.error }, "WhatsApp session message failed");
+    return { sent: false, reason: result.reason };
+  }
+
+  return { sent: true };
+}
 
 // Helper to get global availability schedule
 async function getGlobalSchedule(): Promise<{
@@ -239,27 +347,34 @@ export const registerAppointmentRoutes = (app: FastifyInstance) => {
       }
     }
 
-    // Send WhatsApp confirmation if configured
-    if (config.WHATSAPP_TEMPLATE_CONFIRMATION) {
-      const dateLabel = formatInTimeZone(startAt, config.TIMEZONE, "dd/MM/yyyy");
-      const timeLabel = formatInTimeZone(startAt, config.TIMEZONE, "HH:mm");
-      try {
-        await sendWhatsAppTemplate(user.phone, config.WHATSAPP_TEMPLATE_CONFIRMATION, [
-          { type: "text", text: user.name },
-          { type: "text", text: service.name },
-          { type: "text", text: dateLabel },
-          { type: "text", text: timeLabel }
-        ]);
+    // Send WhatsApp confirmation using session message
+    try {
+      const [notificationSettings, contactInfo] = await Promise.all([
+        fetchNotificationSettings(),
+        fetchContactInfo()
+      ]);
 
+      const confirmResult = await sendConfirmationMessage({
+        phone: user.phone,
+        userName: user.name,
+        services: [{ name: service.name, durationMinutes: service.durationMinutes, price: service.price }],
+        startAt,
+        endAt,
+        notificationSettings,
+        contactInfo,
+        log: request.log
+      });
+
+      if (confirmResult.sent) {
         await prisma.appointmentEvent.create({
           data: {
             appointmentId: appointment.id,
             type: "CONFIRMATION_SENT"
           }
         });
-      } catch (error) {
-        request.log.error({ error }, "Failed to send confirmation");
       }
+    } catch (error) {
+      request.log.error({ error }, "Failed to send confirmation");
     }
 
     // Schedule reminder
@@ -455,20 +570,29 @@ export const registerAppointmentRoutes = (app: FastifyInstance) => {
       }
     }
 
-    // Send WhatsApp confirmation for the batch
-    if (config.WHATSAPP_TEMPLATE_CONFIRMATION) {
-      const dateLabel = formatInTimeZone(initialStartAt, config.TIMEZONE, "dd/MM/yyyy");
-      const timeLabel = formatInTimeZone(initialStartAt, config.TIMEZONE, "HH:mm");
-      const serviceNames = services.map(s => s.name).join(", ");
-      
-      try {
-        await sendWhatsAppTemplate(user.phone, config.WHATSAPP_TEMPLATE_CONFIRMATION, [
-          { type: "text", text: user.name },
-          { type: "text", text: serviceNames },
-          { type: "text", text: dateLabel },
-          { type: "text", text: timeLabel }
-        ]);
+    // Send WhatsApp confirmation for the batch using session message
+    try {
+      const [notificationSettings, contactInfo] = await Promise.all([
+        fetchNotificationSettings(),
+        fetchContactInfo()
+      ]);
 
+      const confirmResult = await sendConfirmationMessage({
+        phone: user.phone,
+        userName: user.name,
+        services: services.map(s => ({ 
+          name: s.name, 
+          durationMinutes: s.durationMinutes, 
+          price: s.price 
+        })),
+        startAt: initialStartAt,
+        endAt: finalEndAt,
+        notificationSettings,
+        contactInfo,
+        log: request.log
+      });
+
+      if (confirmResult.sent) {
         // Log confirmation for first appointment
         await prisma.appointmentEvent.create({
           data: {
@@ -476,9 +600,9 @@ export const registerAppointmentRoutes = (app: FastifyInstance) => {
             type: "CONFIRMATION_SENT"
           }
         });
-      } catch (error) {
-        request.log.error({ error }, "Failed to send confirmation");
       }
+    } catch (error) {
+      request.log.error({ error }, "Failed to send confirmation");
     }
 
     // Schedule reminder for first appointment

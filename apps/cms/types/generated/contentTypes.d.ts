@@ -577,6 +577,41 @@ export interface ApiHomeHome extends Struct.SingleTypeSchema {
   };
 }
 
+export interface ApiNotificationSettingNotificationSetting
+  extends Struct.SingleTypeSchema {
+  collectionName: 'notification_settings';
+  info: {
+    description: 'WhatsApp notification message templates and settings';
+    displayName: 'Notification Setting';
+    pluralName: 'notification-settings';
+    singularName: 'notification-setting';
+  };
+  options: {
+    draftAndPublish: false;
+  };
+  attributes: {
+    businessLatitude: Schema.Attribute.Decimal;
+    businessLongitude: Schema.Attribute.Decimal;
+    businessName: Schema.Attribute.String & Schema.Attribute.Required;
+    confirmationMessageTemplate: Schema.Attribute.Text &
+      Schema.Attribute.Required;
+    createdAt: Schema.Attribute.DateTime;
+    createdBy: Schema.Attribute.Relation<'oneToOne', 'admin::user'> &
+      Schema.Attribute.Private;
+    locale: Schema.Attribute.String & Schema.Attribute.Private;
+    localizations: Schema.Attribute.Relation<
+      'oneToMany',
+      'api::notification-setting.notification-setting'
+    > &
+      Schema.Attribute.Private;
+    publishedAt: Schema.Attribute.DateTime;
+    reminderMessageTemplate: Schema.Attribute.Text;
+    updatedAt: Schema.Attribute.DateTime;
+    updatedBy: Schema.Attribute.Relation<'oneToOne', 'admin::user'> &
+      Schema.Attribute.Private;
+  };
+}
+
 export interface ApiServiceService extends Struct.CollectionTypeSchema {
   collectionName: 'services';
   info: {
@@ -1205,6 +1240,7 @@ declare module '@strapi/strapi' {
       'api::client.client': ApiClientClient;
       'api::contact.contact': ApiContactContact;
       'api::home.home': ApiHomeHome;
+      'api::notification-setting.notification-setting': ApiNotificationSettingNotificationSetting;
       'api::service.service': ApiServiceService;
       'api::team-member.team-member': ApiTeamMemberTeamMember;
       'api::testimonial.testimonial': ApiTestimonialTestimonial;

@@ -1,0 +1,32 @@
+{
+  "kind": "singleType",
+  "collectionName": "notification_settings",
+  "info": {
+    "singularName": "notification-setting",
+    "pluralName": "notification-settings",
+    "displayName": "Notification Setting",
+    "description": "WhatsApp notification message templates and settings"
+  },
+  "options": {
+    "draftAndPublish": false
+  },
+  "attributes": {
+    "confirmationMessageTemplate": {
+      "type": "text",
+      "required": true
+    },
+    "reminderMessageTemplate": {
+      "type": "text"
+    },
+    "businessName": {
+      "type": "string",
+      "required": true
+    },
+    "businessLatitude": {
+      "type": "decimal"
+    },
+    "businessLongitude": {
+      "type": "decimal"
+    }
+  }
+}

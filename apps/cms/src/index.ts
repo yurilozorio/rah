@@ -174,6 +174,35 @@ export default {
       publishedAt: now
     });
 
+    // Default notification settings with message templates
+    await createIfNotExists("api::notification-setting.notification-setting", {
+      confirmationMessageTemplate: `Oi {{name}}! Seu agendamento foi confirmado.
+
+Procedimentos: {{services}}
+Data: {{date}} às {{time}}
+Duração total: {{totalDuration}} min
+Valor: R$ {{totalPrice}}
+
+Nosso endereço:
+{{mapLink}}
+
+Adicione ao seu calendário:
+{{calendarLink}}
+
+Até breve!`,
+      reminderMessageTemplate: `Oi {{name}}! Lembrete do seu agendamento amanhã.
+
+Procedimentos: {{services}}
+Data: {{date}} às {{time}}
+
+Te esperamos!`,
+      businessName: "Rayssa Lozorio Estética",
+      // Vila Velha, ES coordinates (approximate)
+      businessLatitude: -20.3297,
+      businessLongitude: -40.2925,
+      publishedAt: now
+    });
+
     // Only create services that don't exist - don't overwrite existing ones
     for (const [index, service] of seedServices.entries()) {
       const coverImage = serviceImages[index]?.id;
@@ -227,7 +256,8 @@ export default {
         "api::testimonial.testimonial.find",
         "api::testimonial.testimonial.findOne",
         "api::team-member.team-member.find",
-        "api::team-member.team-member.findOne"
+        "api::team-member.team-member.findOne",
+        "api::notification-setting.notification-setting.find"
       ];
 
       const permissionService = strapi.documents("plugin::users-permissions.permission");
