@@ -84,54 +84,58 @@ export default function AdminCalendarPage() {
         </div>
       </div>
       <Card>
-        <CardContent className="space-y-4 p-6">
-          <div className="grid grid-cols-7 gap-2 text-xs text-muted-foreground">
-            {["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"].map((day) => (
-              <span key={day} className="text-center">
-                {day}
-              </span>
-            ))}
-          </div>
-          <div className="grid grid-cols-7 gap-2">
-            {calendarDays.map((day, index) => {
-              const dayAppointments = appointments.filter((appointment) => {
-                const appointmentDate = new Date(appointment.startAt);
-                return (
-                  day.dayNumber &&
-                  appointmentDate.getDate() === day.dayNumber &&
-                  appointmentDate.getMonth() === calendarMonth.getMonth() &&
-                  appointmentDate.getFullYear() === calendarMonth.getFullYear()
-                );
-              });
-              return (
-                <div
-                  key={`${day.dayNumber ?? "x"}-${index}`}
-                  className={`min-h-[72px] rounded border p-2 text-xs ${
-                    day.isCurrentMonth ? "bg-background" : "bg-muted/40 text-muted-foreground"
-                  }`}
-                >
-                  <div className="font-semibold">{day.dayNumber}</div>
-                  <div className="mt-1 space-y-1">
-                    {dayAppointments.map((appointment) => (
-                      <div
-                        key={appointment.id}
-                        className={`rounded px-1 py-0.5 truncate ${
-                          appointment.status === "CANCELLED" ? "bg-muted line-through" : "bg-secondary"
-                        }`}
-                        title={`${appointment.user.name} - ${appointment.serviceName}`}
-                      >
-                        {new Date(appointment.startAt).toLocaleTimeString("pt-BR", {
-                          hour: "2-digit",
-                          minute: "2-digit"
-                        })}
-                        {" - "}
-                        <span className="font-medium">{appointment.user.name.split(" ")[0]}</span>
+        <CardContent className="p-3 sm:p-6">
+          <div className="overflow-x-auto">
+            <div className="min-w-[600px] space-y-4">
+              <div className="grid grid-cols-7 gap-2 text-xs text-muted-foreground">
+                {["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"].map((day) => (
+                  <span key={day} className="text-center">
+                    {day}
+                  </span>
+                ))}
+              </div>
+              <div className="grid grid-cols-7 gap-2">
+                {calendarDays.map((day, index) => {
+                  const dayAppointments = appointments.filter((appointment) => {
+                    const appointmentDate = new Date(appointment.startAt);
+                    return (
+                      day.dayNumber &&
+                      appointmentDate.getDate() === day.dayNumber &&
+                      appointmentDate.getMonth() === calendarMonth.getMonth() &&
+                      appointmentDate.getFullYear() === calendarMonth.getFullYear()
+                    );
+                  });
+                  return (
+                    <div
+                      key={`${day.dayNumber ?? "x"}-${index}`}
+                      className={`min-h-[72px] rounded border p-2 text-xs ${
+                        day.isCurrentMonth ? "bg-background" : "bg-muted/40 text-muted-foreground"
+                      }`}
+                    >
+                      <div className="font-semibold">{day.dayNumber}</div>
+                      <div className="mt-1 space-y-1">
+                        {dayAppointments.map((appointment) => (
+                          <div
+                            key={appointment.id}
+                            className={`rounded px-1 py-0.5 truncate ${
+                              appointment.status === "CANCELLED" ? "bg-muted line-through" : "bg-secondary"
+                            }`}
+                            title={`${appointment.user.name} - ${appointment.serviceName}`}
+                          >
+                            {new Date(appointment.startAt).toLocaleTimeString("pt-BR", {
+                              hour: "2-digit",
+                              minute: "2-digit"
+                            })}
+                            {" - "}
+                            <span className="font-medium">{appointment.user.name.split(" ")[0]}</span>
+                          </div>
+                        ))}
                       </div>
-                    ))}
-                  </div>
-                </div>
-              );
-            })}
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
           </div>
         </CardContent>
       </Card>

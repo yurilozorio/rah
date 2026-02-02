@@ -13,7 +13,8 @@ type ContactContent = {
   email?: string;
   phone?: string;
   address?: string;
-  mapUrl?: string;
+  businessHoursTitle?: string;
+  businessHours?: string;
 };
 
 export default async function ContactPage() {
@@ -23,9 +24,9 @@ export default async function ContactPage() {
   return (
     <div className="relative overflow-hidden">
       {/* Decorative blobs */}
-      <div className="blob blob-pink absolute -top-32 -left-32 h-96 w-96" />
-      <div className="blob blob-coral absolute -bottom-32 -right-32 h-80 w-80" />
-      <div className="blob blob-rose absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 h-64 w-64" />
+      <div className="blob blob-sage absolute -top-32 -left-32 h-96 w-96" />
+      <div className="blob blob-nude absolute -bottom-32 -right-32 h-80 w-80" />
+      <div className="blob blob-soft absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 h-64 w-64" />
       
       <Section 
         title={contact?.title || "Entre em Contato"} 
@@ -33,27 +34,27 @@ export default async function ContactPage() {
         className="relative z-10"
       >
         {/* Main contact grid */}
-        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+        <div className="grid grid-cols-2 gap-3 sm:gap-6 lg:grid-cols-3">
           {/* WhatsApp - Featured */}
           {contact?.whatsapp ? (
             <a 
               href={`https://wa.me/${contact.whatsapp.replace(/\D/g, '')}`}
               target="_blank"
               rel="noreferrer"
-              className="group md:col-span-2 lg:col-span-1"
+              className="group col-span-2 lg:col-span-1"
             >
               <Card className="card-hover h-full border-0 bg-gradient-to-br from-green-50 to-emerald-50 shadow-lg overflow-hidden">
-                <CardContent className="flex flex-col items-center gap-4 p-8 text-center">
-                  <div className="flex h-20 w-20 items-center justify-center rounded-2xl bg-gradient-to-br from-green-500 to-emerald-500 text-white shadow-lg shadow-green-200/50 transition-transform group-hover:scale-110">
-                    <MessageCircle className="h-10 w-10" />
+                <CardContent className="flex flex-col items-center gap-2 sm:gap-4 p-4 sm:p-8 text-center">
+                  <div className="flex h-12 w-12 sm:h-20 sm:w-20 items-center justify-center rounded-xl sm:rounded-2xl bg-gradient-to-br from-green-500 to-emerald-500 text-white shadow-lg shadow-green-200/50 transition-transform group-hover:scale-110">
+                    <MessageCircle className="h-6 w-6 sm:h-10 sm:w-10" />
                   </div>
                   <div>
-                    <h3 className="text-xl font-semibold text-foreground">WhatsApp</h3>
-                    <p className="mt-1 text-muted-foreground">Resposta rápida</p>
+                    <h3 className="text-base sm:text-xl font-semibold text-foreground">WhatsApp</h3>
+                    <p className="mt-0.5 sm:mt-1 text-xs sm:text-base text-muted-foreground">Resposta rápida</p>
                   </div>
-                  <p className="text-lg font-medium text-green-600">{contact.whatsapp}</p>
-                  <span className="inline-flex items-center gap-2 text-sm font-medium text-green-600 group-hover:gap-3 transition-all">
-                    Iniciar conversa <ArrowRight className="h-4 w-4" />
+                  <p className="text-sm sm:text-lg font-medium text-green-600">{contact.whatsapp}</p>
+                  <span className="inline-flex items-center gap-2 text-xs sm:text-sm font-medium text-green-600 group-hover:gap-3 transition-all">
+                    Iniciar conversa <ArrowRight className="h-3 w-3 sm:h-4 sm:w-4" />
                   </span>
                 </CardContent>
               </Card>
@@ -63,16 +64,16 @@ export default async function ContactPage() {
           {/* Phone */}
           {contact?.phone ? (
             <a href={`tel:${contact.phone.replace(/\D/g, '')}`} className="group">
-              <Card className="card-hover h-full border-0 bg-gradient-to-br from-white to-pink-50 shadow-lg">
-                <CardContent className="flex flex-col items-center gap-4 p-8 text-center">
-                  <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br from-primary to-accent-warm text-white shadow-lg shadow-pink-200/50 transition-transform group-hover:scale-110">
-                    <Phone className="h-8 w-8" />
+              <Card className="card-hover h-full border-0 bg-gradient-to-br from-white to-secondary/40 shadow-lg">
+                <CardContent className="flex flex-col items-center gap-2 sm:gap-4 p-4 sm:p-8 text-center">
+                  <div className="flex h-12 w-12 sm:h-16 sm:w-16 items-center justify-center rounded-xl sm:rounded-2xl bg-gradient-to-br from-primary to-accent-sage text-white shadow-lg shadow-accent/30 transition-transform group-hover:scale-110">
+                    <Phone className="h-6 w-6 sm:h-8 sm:w-8" />
                   </div>
                   <div>
-                    <h3 className="text-lg font-semibold text-foreground">Telefone</h3>
-                    <p className="mt-1 text-sm text-muted-foreground">Ligue para nós</p>
+                    <h3 className="text-sm sm:text-lg font-semibold text-foreground">Telefone</h3>
+                    <p className="mt-0.5 sm:mt-1 text-xs sm:text-sm text-muted-foreground">Ligue para nós</p>
                   </div>
-                  <p className="font-medium text-primary">{contact.phone}</p>
+                  <p className="text-xs sm:text-base font-medium text-primary">{contact.phone}</p>
                 </CardContent>
               </Card>
             </a>
@@ -81,16 +82,16 @@ export default async function ContactPage() {
           {/* Email */}
           {contact?.email ? (
             <a href={`mailto:${contact.email}`} className="group">
-              <Card className="card-hover h-full border-0 bg-gradient-to-br from-white to-rose-50 shadow-lg">
-                <CardContent className="flex flex-col items-center gap-4 p-8 text-center">
-                  <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br from-rose-400 to-pink-500 text-white shadow-lg shadow-rose-200/50 transition-transform group-hover:scale-110">
-                    <Mail className="h-8 w-8" />
+              <Card className="card-hover h-full border-0 bg-gradient-to-br from-white to-accent/30 shadow-lg">
+                <CardContent className="flex flex-col items-center gap-2 sm:gap-4 p-4 sm:p-8 text-center">
+                  <div className="flex h-12 w-12 sm:h-16 sm:w-16 items-center justify-center rounded-xl sm:rounded-2xl bg-gradient-to-br from-accent to-accent-warm text-white shadow-lg shadow-accent/30 transition-transform group-hover:scale-110">
+                    <Mail className="h-6 w-6 sm:h-8 sm:w-8" />
                   </div>
                   <div>
-                    <h3 className="text-lg font-semibold text-foreground">Email</h3>
-                    <p className="mt-1 text-sm text-muted-foreground">Envie uma mensagem</p>
+                    <h3 className="text-sm sm:text-lg font-semibold text-foreground">Email</h3>
+                    <p className="mt-0.5 sm:mt-1 text-xs sm:text-sm text-muted-foreground">Envie uma mensagem</p>
                   </div>
-                  <p className="font-medium text-rose-500 break-all">{contact.email}</p>
+                  <p className="text-xs sm:text-base font-medium text-primary break-all">{contact.email}</p>
                 </CardContent>
               </Card>
             </a>
@@ -127,13 +128,13 @@ export default async function ContactPage() {
         
         {/* Address and Map Section */}
         {contact?.address ? (
-          <Card className="mt-8 border-0 bg-gradient-to-br from-white to-pink-50/50 shadow-xl overflow-hidden">
+          <Card className="mt-8 border-0 bg-gradient-to-br from-white to-secondary/40 shadow-xl overflow-hidden">
             <CardContent className="p-0">
               <div className="grid md:grid-cols-2">
                 {/* Address info */}
                 <div className="flex flex-col justify-center gap-6 p-8">
                   <div className="flex items-start gap-4">
-                    <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-primary to-accent-warm text-white">
+                    <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-primary to-accent-sage text-white">
                       <MapPin className="h-7 w-7" />
                     </div>
                     <div>
@@ -143,21 +144,22 @@ export default async function ContactPage() {
                   </div>
                   
                   <div className="flex items-start gap-4">
-                    <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-amber-400 to-orange-400 text-white">
+                    <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-accent-gold to-accent-warm text-white">
                       <Clock className="h-7 w-7" />
                     </div>
                     <div>
-                      <h3 className="text-xl font-semibold text-foreground">Horário de Funcionamento</h3>
-                      <p className="mt-2 text-muted-foreground">
-                        Segunda a Sábado<br />
-                        9h às 19h
+                      <h3 className="text-xl font-semibold text-foreground">
+                        {contact.businessHoursTitle || "Horário de Funcionamento"}
+                      </h3>
+                      <p className="mt-2 text-muted-foreground whitespace-pre-line">
+                        {contact.businessHours || "Segunda a Sábado\n9h às 19h"}
                       </p>
                     </div>
                   </div>
                   
-                  <Button asChild size="lg" className="mt-4 w-full bg-gradient-to-r from-primary to-accent-warm text-white shadow-lg md:w-auto">
+                  <Button asChild size="lg" className="mt-4 w-full bg-gradient-to-r from-primary to-accent-sage text-white shadow-lg md:w-auto">
                     <a 
-                      href={contact.mapUrl || `https://maps.google.com/?q=${encodeURIComponent(contact.address)}`}
+                      href={`https://maps.google.com/?q=${encodeURIComponent(contact.address)}`}
                       target="_blank"
                       rel="noreferrer"
                     >
@@ -167,20 +169,18 @@ export default async function ContactPage() {
                   </Button>
                 </div>
                 
-                {/* Map placeholder / visual */}
-                <div className="relative min-h-[300px] bg-gradient-to-br from-pink-100 to-rose-100">
-                  <div className="absolute inset-0 flex flex-col items-center justify-center p-8">
-                    <div className="flex h-24 w-24 items-center justify-center rounded-full bg-white/80 shadow-lg backdrop-blur-sm">
-                      <MapPin className="h-12 w-12 text-primary" />
-                    </div>
-                    <p className="mt-4 text-center text-muted-foreground">
-                      Clique no botão para ver<br />a localização no mapa
-                    </p>
-                  </div>
-                  {/* Decorative elements */}
-                  <div className="absolute top-4 left-4 h-8 w-8 rounded-full bg-primary/20" />
-                  <div className="absolute bottom-8 right-8 h-12 w-12 rounded-full bg-accent/30" />
-                  <div className="absolute top-1/3 right-1/4 h-6 w-6 rounded-full bg-rose-300/40" />
+                {/* Map embed */}
+                <div className="relative min-h-[300px] bg-gradient-to-br from-secondary to-accent/30">
+                  <iframe
+                    src={`https://maps.google.com/maps?q=${encodeURIComponent(contact.address)}&t=&z=15&ie=UTF8&iwloc=&output=embed`}
+                    width="100%"
+                    height="100%"
+                    style={{ border: 0, position: 'absolute', inset: 0 }}
+                    allowFullScreen
+                    loading="lazy"
+                    referrerPolicy="no-referrer-when-downgrade"
+                    title="Localização no mapa"
+                  />
                 </div>
               </div>
             </CardContent>
@@ -188,8 +188,8 @@ export default async function ContactPage() {
         ) : null}
         
         {/* CTA Section */}
-        <Card className="mt-12 border-0 bg-gradient-to-r from-primary to-accent-warm p-1 shadow-xl">
-          <CardContent className="flex flex-col items-center gap-6 rounded-xl bg-gradient-to-r from-primary to-accent-warm p-8 text-center text-white">
+        <Card className="mt-12 border-0 bg-gradient-to-r from-primary to-accent-sage p-1 shadow-xl">
+          <CardContent className="flex flex-col items-center gap-6 rounded-xl bg-gradient-to-r from-primary to-accent-sage p-8 text-center text-white">
             <Sparkles className="h-12 w-12" />
             <div>
               <h3 className="text-2xl font-bold font-display">Pronta para agendar?</h3>

@@ -60,11 +60,11 @@ export default async function ServicePage({ params }: { params: Promise<{ slug: 
   return (
     <div className="relative overflow-hidden">
       {/* Decorative blobs */}
-      <div className="blob blob-pink absolute -top-40 -right-40 h-96 w-96" />
-      <div className="blob blob-coral absolute -bottom-40 -left-40 h-80 w-80" />
+      <div className="blob blob-sage absolute -top-40 -right-40 h-96 w-96" />
+      <div className="blob blob-nude absolute -bottom-40 -left-40 h-80 w-80" />
       
       {/* Hero Section */}
-      <section className="relative z-10 bg-gradient-to-b from-pink-50 to-white py-8 md:py-12">
+      <section className="relative z-10 bg-gradient-to-b from-secondary/40 to-white py-8 md:py-12">
         <div className="mx-auto max-w-4xl px-4">
           {/* Breadcrumb */}
           <Link 
@@ -91,7 +91,7 @@ export default async function ServicePage({ params }: { params: Promise<{ slug: 
                   <div className="absolute inset-0 rounded-2xl ring-1 ring-inset ring-black/10" />
                 </>
               ) : (
-                <div className="flex h-full items-center justify-center bg-gradient-to-br from-pink-100 to-rose-100">
+                <div className="flex h-full items-center justify-center bg-gradient-to-br from-secondary to-accent/50">
                   <Sparkles className="h-24 w-24 text-primary/30" />
                 </div>
               )}
@@ -112,7 +112,7 @@ export default async function ServicePage({ params }: { params: Promise<{ slug: 
               {/* Quick Stats */}
               <div className="flex flex-wrap gap-4">
                 <div className="flex items-center gap-3 rounded-xl bg-white px-4 py-3 shadow-md">
-                  <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-gradient-to-br from-primary to-accent-warm text-white">
+                  <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-gradient-to-br from-primary to-accent-sage text-white">
                     <Clock className="h-5 w-5" />
                   </div>
                   <div>
@@ -121,7 +121,7 @@ export default async function ServicePage({ params }: { params: Promise<{ slug: 
                   </div>
                 </div>
                 <div className="flex items-center gap-3 rounded-xl bg-white px-4 py-3 shadow-md">
-                  <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-gradient-to-br from-amber-400 to-orange-400 text-white">
+                  <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-gradient-to-br from-accent-gold to-accent-warm text-white">
                     <Sparkles className="h-5 w-5" />
                   </div>
                   <div>
@@ -135,9 +135,9 @@ export default async function ServicePage({ params }: { params: Promise<{ slug: 
               <Button 
                 asChild 
                 size="lg" 
-                className="w-full bg-gradient-to-r from-primary to-accent-warm text-white shadow-lg sm:w-auto"
+                className="w-full bg-gradient-to-r from-primary to-accent-sage text-white shadow-lg sm:w-auto"
               >
-                <Link href="/agenda">
+                <Link href={`/agenda?serviceId=${service.id}`}>
                   <Calendar className="mr-2 h-5 w-5" />
                   Agendar Agora
                 </Link>
@@ -166,7 +166,7 @@ export default async function ServicePage({ params }: { params: Promise<{ slug: 
 
       {/* Related Services */}
       {relatedServices.length > 0 && (
-        <section className="relative z-10 bg-gradient-to-b from-transparent to-pink-50 py-16">
+        <section className="relative z-10 bg-gradient-to-b from-transparent to-secondary/40 py-16">
           <div className="mx-auto max-w-4xl px-4">
             <h2 className="text-2xl font-bold font-display text-center mb-8">
               Outros Serviços
@@ -187,7 +187,7 @@ export default async function ServicePage({ params }: { params: Promise<{ slug: 
                             unoptimized 
                           />
                         ) : (
-                          <div className="flex h-full items-center justify-center bg-gradient-to-br from-pink-100 to-rose-100">
+                          <div className="flex h-full items-center justify-center bg-gradient-to-br from-secondary to-accent/50">
                             <Sparkles className="h-10 w-10 text-primary/40" />
                           </div>
                         )}
@@ -211,7 +211,7 @@ export default async function ServicePage({ params }: { params: Promise<{ slug: 
       )}
 
       {/* Mobile Fixed CTA */}
-      <div className="fixed bottom-0 left-0 right-0 z-50 bg-white/95 backdrop-blur-sm border-t border-pink-100 p-4 lg:hidden">
+      <div className="fixed bottom-0 left-0 right-0 z-50 bg-white/95 backdrop-blur-sm border-t border-accent/30 p-4 lg:hidden">
         <div className="flex items-center justify-between gap-4">
           <div>
             <p className="font-semibold text-foreground">{service.name}</p>
@@ -219,9 +219,9 @@ export default async function ServicePage({ params }: { params: Promise<{ slug: 
           </div>
           <Button 
             asChild 
-            className="bg-gradient-to-r from-primary to-accent-warm text-white shadow-lg"
+            className="bg-gradient-to-r from-primary to-accent-sage text-white shadow-lg"
           >
-            <Link href="/agenda">Agendar</Link>
+            <Link href={`/agenda?serviceId=${service.id}`}>Agendar</Link>
           </Button>
         </div>
       </div>

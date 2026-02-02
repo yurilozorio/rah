@@ -38,10 +38,10 @@ module.exports = {
         accent: {
           DEFAULT: "var(--accent)",
           foreground: "var(--accent-foreground)",
-          warm: "#f472b6",
-          coral: "#fb7185",
-          rose: "#e11d48",
-          gold: "#fbbf24"
+          warm: "#ddb8aa",
+          soft: "#f0d9d1",
+          sage: "#989d82",
+          gold: "#c9a86c"
         },
         popover: {
           DEFAULT: "var(--popover)",

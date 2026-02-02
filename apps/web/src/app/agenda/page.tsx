@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useMemo, useState, useCallback } from "react";
+import { Suspense, useEffect, useMemo, useState, useCallback } from "react";
+import { useSearchParams } from "next/navigation";
 import { Card, CardContent } from "@/components/ui/card";
 import { apiFetch } from "@/lib/api";
 import { formatPrice } from "@/lib/format";
@@ -77,10 +78,37 @@ type BookingState =
   | { step: "contact"; date: string; slot: Slot }
   | { step: "success"; date: string; slot: Slot };
 
+function AgendaLoading() {
+  return (
+    <div className="relative overflow-hidden">
+      <div className="blob blob-sage absolute -top-32 -left-32 h-96 w-96" />
+      <div className="blob blob-nude absolute -bottom-32 -right-32 h-80 w-80" />
+      <div className="relative z-10 mx-auto w-full max-w-6xl px-4 py-8">
+        <div className="text-center">
+          <h1 className="text-2xl font-bold font-display md:text-3xl">Carregando...</h1>
+          <p className="mt-2 text-muted-foreground">Aguarde um momento</p>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function AgendaPage() {
+  return (
+    <Suspense fallback={<AgendaLoading />}>
+      <AgendaContent />
+    </Suspense>
+  );
+}
+
+function AgendaContent() {
+  const searchParams = useSearchParams();
+  const preselectedServiceId = searchParams.get("serviceId");
+
   // Services
   const [services, setServices] = useState<Service[]>([]);
   const [selectedServiceIds, setSelectedServiceIds] = useState<number[]>([]);
+  const [hasAppliedPreselection, setHasAppliedPreselection] = useState(false);
 
   // Calendar availability
   const [availableDates, setAvailableDates] = useState<Map<string, Slot[]>>(
@@ -139,6 +167,17 @@ export default function AgendaPage() {
       .then(setServices)
       .catch(() => setServices([]));
   }, []);
+
+  // Pre-select service from URL parameter
+  useEffect(() => {
+    if (preselectedServiceId && services.length > 0 && !hasAppliedPreselection) {
+      const serviceId = parseInt(preselectedServiceId, 10);
+      if (!isNaN(serviceId) && services.some((s) => s.id === serviceId)) {
+        setSelectedServiceIds([serviceId]);
+        setHasAppliedPreselection(true);
+      }
+    }
+  }, [preselectedServiceId, services, hasAppliedPreselection]);
 
   // Toggle service selection
   const handleToggleService = (serviceId: number) => {
@@ -301,7 +340,7 @@ export default function AgendaPage() {
   if (bookingState.step === "success") {
     return (
       <div className="mx-auto w-full max-w-lg px-4 py-12">
-        <Card className="border-0 bg-gradient-to-br from-white to-pink-50/50 shadow-xl overflow-hidden">
+        <Card className="border-0 bg-gradient-to-br from-white to-secondary/40 shadow-xl overflow-hidden">
           <CardContent className="p-8 text-center">
             <div className="mx-auto mb-6 flex h-20 w-20 items-center justify-center rounded-full bg-gradient-to-br from-green-400 to-emerald-500 text-white shadow-lg">
               <CheckCircle className="h-10 w-10" />
@@ -311,7 +350,7 @@ export default function AgendaPage() {
               {selectedServiceIds.length > 1 ? "Seus horários foram reservados" : "Seu horário foi reservado"} com sucesso.
             </p>
 
-            <div className="mt-8 space-y-3 rounded-2xl bg-gradient-to-br from-pink-50 to-rose-50 p-6 text-left">
+            <div className="mt-8 space-y-3 rounded-2xl bg-gradient-to-br from-secondary to-accent/30 p-6 text-left">
               {selectedServices.map((service) => (
                 <div key={service.id} className="flex items-center gap-3">
                   <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-white shadow">
@@ -323,7 +362,7 @@ export default function AgendaPage() {
                   </div>
                 </div>
               ))}
-              <div className="mt-4 border-t border-pink-200 pt-4">
+              <div className="mt-4 border-t border-accent/40 pt-4">
                 <p className="text-sm text-muted-foreground capitalize">
                   {new Intl.DateTimeFormat("pt-BR", {
                     weekday: "long",
@@ -347,7 +386,7 @@ export default function AgendaPage() {
 
             <Button 
               onClick={handleNewBooking} 
-              className="mt-6 bg-gradient-to-r from-primary to-accent-warm text-white shadow-lg"
+              className="mt-6 bg-gradient-to-r from-primary to-accent-sage text-white shadow-lg"
             >
               Fazer novo agendamento
             </Button>
@@ -360,8 +399,8 @@ export default function AgendaPage() {
   return (
     <div className="relative overflow-hidden">
       {/* Decorative blobs */}
-      <div className="blob blob-pink absolute -top-32 -left-32 h-96 w-96" />
-      <div className="blob blob-coral absolute -bottom-32 -right-32 h-80 w-80" />
+      <div className="blob blob-sage absolute -top-32 -left-32 h-96 w-96" />
+      <div className="blob blob-nude absolute -bottom-32 -right-32 h-80 w-80" />
       
       <div className="relative z-10 mx-auto w-full max-w-6xl px-4 py-8">
         {/* Service selection */}
@@ -380,7 +419,7 @@ export default function AgendaPage() {
             <CardContent className="p-0">
               <div className="grid lg:grid-cols-[320px_1fr_320px]">
                 {/* Left panel - Selected services */}
-                <div className="border-b bg-gradient-to-br from-pink-50 to-white p-6 lg:border-b-0 lg:border-r">
+                <div className="border-b bg-gradient-to-br from-secondary/40 to-white p-6 lg:border-b-0 lg:border-r">
                   <button
                     type="button"
                     onClick={handleBackToServices}
@@ -437,7 +476,7 @@ export default function AgendaPage() {
                 <div className="p-6">
                   {bookingState.step === "select-date" && (
                     <div className="flex h-full flex-col items-center justify-center text-center">
-                      <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-pink-50">
+                      <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-secondary/50">
                         <Clock className="h-8 w-8 text-primary/50" />
                       </div>
                       <p className="text-muted-foreground">

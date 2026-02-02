@@ -25,10 +25,10 @@ export const SiteHeader = ({
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   return (
-    <header className="sticky top-0 z-50 border-b border-pink-100 bg-white/80 backdrop-blur-md">
+    <header className="sticky top-0 z-50 border-b border-accent/30 bg-white/80 backdrop-blur-md">
       <div className="mx-auto flex w-full max-w-6xl items-center justify-between px-4 py-4">
         {siteName ? (
-          <Link href="/" className="text-xl font-semibold text-foreground font-display bg-gradient-to-r from-primary to-accent-warm bg-clip-text text-transparent">
+          <Link href="/" className="text-xl font-semibold font-display bg-gradient-to-r from-primary to-accent-sage bg-clip-text text-transparent">
             {siteName}
           </Link>
         ) : null}
@@ -46,19 +46,19 @@ export const SiteHeader = ({
         <div className="flex items-center gap-3">
           <Link
             href="/painel"
-            className="flex h-9 w-9 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-pink-50 hover:text-primary"
+            className="flex h-9 w-9 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-secondary hover:text-primary"
             title="Admin"
           >
             <Settings2 className="h-5 w-5" />
           </Link>
           {ctaLabel ? (
-            <Button asChild className="hidden sm:inline-flex bg-gradient-to-r from-primary to-accent-warm text-white shadow-md shadow-pink-200/50 hover:shadow-lg hover:shadow-pink-300/50 transition-all">
+            <Button asChild className="hidden sm:inline-flex bg-gradient-to-r from-primary to-accent-sage text-white shadow-md shadow-accent/30 hover:shadow-lg hover:shadow-accent/40 transition-all">
               <Link href={ctaLink ?? "/agenda"}>{ctaLabel}</Link>
             </Button>
           ) : null}
           <button 
             onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-            className="flex h-9 w-9 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-pink-50 hover:text-primary md:hidden"
+            className="flex h-9 w-9 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-secondary hover:text-primary md:hidden"
           >
             {mobileMenuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
           </button>
@@ -67,7 +67,7 @@ export const SiteHeader = ({
       
       {/* Mobile menu */}
       {mobileMenuOpen && (
-        <nav className="border-t border-pink-100 bg-white px-4 py-4 md:hidden">
+        <nav className="border-t border-accent/30 bg-white px-4 py-4 md:hidden">
           <div className="flex flex-col gap-4">
             {navItems.map((item) => (
               <Link
@@ -80,7 +80,7 @@ export const SiteHeader = ({
               </Link>
             ))}
             {ctaLabel ? (
-              <Button asChild className="mt-2 bg-gradient-to-r from-primary to-accent-warm text-white">
+              <Button asChild className="mt-2 bg-gradient-to-r from-primary to-accent-sage text-white">
                 <Link href={ctaLink ?? "/agenda"} onClick={() => setMobileMenuOpen(false)}>
                   {ctaLabel}
                 </Link>

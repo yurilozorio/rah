@@ -1,9 +1,8 @@
-export const formatPrice = (valueInCents: number) => {
-  const amount = valueInCents / 100;
+export const formatPrice = (value: number) => {
   return new Intl.NumberFormat("pt-BR", {
     style: "currency",
     currency: "BRL"
-  }).format(amount);
+  }).format(value);
 };
 
 export const formatDateTime = (iso: string) => {

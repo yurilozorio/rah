@@ -105,8 +105,8 @@ export default async function Home() {
       {/* Hero Section */}
       <section className="relative gradient-hero">
         {/* Decorative blobs */}
-        <div className="blob blob-pink absolute top-10 left-10 h-72 w-72" />
-        <div className="blob blob-coral absolute bottom-10 right-20 h-56 w-56" />
+        <div className="blob blob-sage absolute top-10 left-10 h-72 w-72" />
+        <div className="blob blob-nude absolute bottom-10 right-20 h-56 w-56" />
         
         <div className="relative z-10 mx-auto flex w-full max-w-6xl flex-col gap-12 px-4 py-20 md:flex-row md:items-center md:justify-between lg:py-28">
           <div className="max-w-xl space-y-6">
@@ -128,7 +128,7 @@ export default async function Home() {
             ) : null}
             <div className="flex flex-wrap gap-4">
               {home?.heroCtaLabel ? (
-                <Button asChild size="lg" className="bg-gradient-to-r from-primary to-accent-warm text-white shadow-lg shadow-pink-300/40 hover:shadow-xl hover:shadow-pink-300/50 transition-all">
+                <Button asChild size="lg" className="bg-gradient-to-r from-primary to-accent-sage text-white shadow-lg shadow-accent/30 hover:shadow-xl hover:shadow-accent/40 transition-all">
                   <Link href={home.heroCtaLink ?? "/agenda"}>{home.heroCtaLabel}</Link>
                 </Button>
               ) : null}
@@ -142,7 +142,7 @@ export default async function Home() {
           {heroImageUrl ? (
             <div className="relative hidden md:block md:shrink-0">
               <div className="absolute -inset-4 rounded-[2rem] bg-gradient-to-br from-primary/20 to-accent/20 blur-2xl" />
-              <div className="relative h-80 w-80 overflow-hidden rounded-[2rem] border-4 border-white shadow-2xl shadow-pink-200/50 lg:h-96 lg:w-96">
+              <div className="relative h-80 w-80 overflow-hidden rounded-[2rem] border-4 border-white shadow-2xl shadow-accent/40 lg:h-96 lg:w-96">
                 <Image src={heroImageUrl} alt={home?.heroTitle ?? ""} fill className="object-cover" unoptimized />
               </div>
             </div>
@@ -164,13 +164,13 @@ export default async function Home() {
         subtitle={home?.servicesSubtitle}
         className="bg-white"
       >
-        <div className="grid gap-8 md:grid-cols-2 lg:grid-cols-3">
+        <div className="grid grid-cols-2 gap-3 sm:gap-8 lg:grid-cols-3">
           {services.map((service) => {
             const coverImage = getImageUrl(service.coverImage);
             return (
-              <Card key={service.id} className="card-hover group overflow-hidden border-0 bg-gradient-to-br from-white to-pink-50/30 shadow-lg">
+              <Card key={service.id} className="card-hover group overflow-hidden border-0 bg-gradient-to-br from-white to-secondary/30 shadow-lg !p-0 !gap-0">
                 {coverImage ? (
-                  <div className="relative aspect-[4/3] w-full overflow-hidden">
+                  <div className="relative aspect-[4/3] w-full overflow-hidden rounded-t-xl">
                     <Image 
                       src={coverImage} 
                       alt={service.name} 
@@ -181,25 +181,25 @@ export default async function Home() {
                     <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent" />
                   </div>
                 ) : (
-                  <div className="flex aspect-[4/3] items-center justify-center bg-gradient-to-br from-pink-100 to-rose-100">
-                    <Sparkles className="h-16 w-16 text-primary/40" />
+                  <div className="flex aspect-[4/3] items-center justify-center bg-gradient-to-br from-secondary to-accent/50 rounded-t-xl">
+                    <Sparkles className="h-10 w-10 sm:h-16 sm:w-16 text-primary/40" />
                   </div>
                 )}
-                <CardContent className="flex flex-col gap-4 p-6">
+                <CardContent className="flex flex-col gap-2 sm:gap-4 p-3 sm:p-6 !px-3 sm:!px-6">
                   <div>
-                    <h3 className="text-xl font-semibold font-display text-foreground">{service.name}</h3>
-                    <div className="mt-2 flex items-center gap-4 text-sm text-muted-foreground">
+                    <h3 className="text-sm sm:text-xl font-semibold font-display text-foreground line-clamp-2">{service.name}</h3>
+                    <div className="mt-1 sm:mt-2 flex items-center justify-between text-xs sm:text-sm text-muted-foreground">
                       <span className="flex items-center gap-1">
-                        <Clock className="h-4 w-4" />
+                        <Clock className="h-3 w-3 sm:h-4 sm:w-4" />
                         {service.durationMinutes} min
                       </span>
                       <span className="font-semibold text-primary">{formatPrice(service.price)}</span>
                     </div>
                   </div>
                   {service.description ? (
-                    <p className="line-clamp-2 text-sm text-muted-foreground">{service.description}</p>
+                    <p className="line-clamp-2 text-xs sm:text-sm text-muted-foreground hidden sm:block">{service.description}</p>
                   ) : null}
-                  <Button asChild className="bg-primary/10 text-primary hover:bg-primary hover:text-white transition-colors">
+                  <Button asChild size="sm" className="bg-primary/10 text-primary hover:bg-primary hover:text-white transition-colors text-xs sm:text-sm h-8 sm:h-10">
                     <Link href={`/services/${service.slug}`}>Ver detalhes</Link>
                   </Button>
                 </CardContent>
@@ -216,46 +216,46 @@ export default async function Home() {
 
       {/* Testimonials Section */}
       <section className="relative py-20">
-        <div className="blob blob-rose absolute top-0 left-1/4 h-64 w-64" />
-        <div className="blob blob-pink absolute bottom-0 right-1/4 h-48 w-48" />
+        <div className="blob blob-nude absolute top-0 left-1/4 h-64 w-64" />
+        <div className="blob blob-sage absolute bottom-0 right-1/4 h-48 w-48" />
         
         <Section
           title={home?.testimonialsTitle}
           subtitle={home?.testimonialsSubtitle}
           className="relative z-10"
         >
-          <div className="grid gap-8 md:grid-cols-2 lg:grid-cols-3">
-            {testimonials.slice(0, 3).map((testimonial) => {
+          <div className="grid grid-cols-2 gap-3 sm:gap-8 lg:grid-cols-3">
+            {testimonials.slice(0, 4).map((testimonial) => {
               const avatarUrl = getImageUrl(testimonial.avatar);
               return (
-                <Card key={testimonial.id} className="card-hover relative overflow-hidden border-0 bg-gradient-to-br from-white via-white to-pink-50/50 shadow-lg">
-                  <div className="quote-mark -top-2 left-4">"</div>
+                <Card key={testimonial.id} className="card-hover relative overflow-hidden border-0 bg-gradient-to-br from-white via-white to-secondary/40 shadow-lg">
+                  <div className="quote-mark -top-2 left-2 sm:left-4 text-3xl sm:text-5xl">"</div>
                   
-                  <CardContent className="relative z-10 flex h-full flex-col gap-4 p-6 pt-8">
+                  <CardContent className="relative z-10 flex h-full flex-col gap-2 sm:gap-4 p-3 sm:p-6 pt-6 sm:pt-8">
                     <StarRating rating={testimonial.rating ?? 5} />
                     
-                    <blockquote className="flex-1 text-base leading-relaxed text-foreground/80 italic">
+                    <blockquote className="flex-1 text-xs sm:text-base leading-relaxed text-foreground/80 italic line-clamp-4 sm:line-clamp-none">
                       "{testimonial.quote}"
                     </blockquote>
                     
-                    <div className="flex items-center gap-4 border-t border-pink-100 pt-4">
+                    <div className="flex items-center gap-2 sm:gap-4 border-t border-accent/30 pt-2 sm:pt-4">
                       {avatarUrl ? (
-                        <div className="relative h-12 w-12 overflow-hidden rounded-full ring-2 ring-primary/20 ring-offset-2">
+                        <div className="relative h-8 w-8 sm:h-12 sm:w-12 overflow-hidden rounded-full ring-2 ring-primary/20 ring-offset-1 sm:ring-offset-2">
                           <Image src={avatarUrl} alt={testimonial.name} fill className="object-cover" unoptimized />
                         </div>
                       ) : (
-                        <div className="flex h-12 w-12 items-center justify-center rounded-full bg-gradient-to-br from-primary to-accent-warm text-lg font-semibold text-white">
+                        <div className="flex h-8 w-8 sm:h-12 sm:w-12 items-center justify-center rounded-full bg-gradient-to-br from-primary to-accent-sage text-sm sm:text-lg font-semibold text-white">
                           {testimonial.name.charAt(0)}
                         </div>
                       )}
                       <div>
-                        <p className="font-semibold text-foreground">{testimonial.name}</p>
-                        <p className="text-sm text-muted-foreground">Cliente verificada</p>
+                        <p className="text-xs sm:text-base font-semibold text-foreground">{testimonial.name}</p>
+                        <p className="text-[10px] sm:text-sm text-muted-foreground">Cliente verificada</p>
                       </div>
                     </div>
                   </CardContent>
                   
-                  <div className="absolute bottom-0 right-0 h-32 w-32 rounded-tl-full bg-gradient-to-tl from-pink-100/50 to-transparent" />
+                  <div className="absolute bottom-0 right-0 h-16 w-16 sm:h-32 sm:w-32 rounded-tl-full bg-gradient-to-tl from-secondary/50 to-transparent" />
                 </Card>
               );
             })}
@@ -269,9 +269,9 @@ export default async function Home() {
       </section>
 
       {/* Contact Section */}
-      <section className="relative bg-gradient-to-b from-white to-pink-50 py-20">
+      <section className="relative bg-gradient-to-b from-white to-secondary/40 py-20">
         <Section title={contact?.title} subtitle={contactSubtitle}>
-          <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
+          <div className="grid grid-cols-2 gap-3 sm:gap-6 lg:grid-cols-4">
             {contact?.whatsapp ? (
               <a 
                 href={`https://wa.me/${contact.whatsapp.replace(/\D/g, '')}`}
@@ -279,31 +279,31 @@ export default async function Home() {
                 rel="noreferrer"
                 className="contact-card group"
               >
-                <div className="icon-wrapper">
-                  <MessageCircle className="h-6 w-6" />
+                <div className="icon-wrapper !h-10 !w-10 sm:!h-12 sm:!w-12">
+                  <MessageCircle className="h-5 w-5 sm:h-6 sm:w-6" />
                 </div>
-                <h4 className="font-semibold text-foreground">WhatsApp</h4>
-                <p className="text-sm text-muted-foreground group-hover:text-primary transition-colors">{contact.whatsapp}</p>
+                <h4 className="text-sm sm:text-base font-semibold text-foreground">WhatsApp</h4>
+                <p className="text-xs sm:text-sm text-muted-foreground group-hover:text-primary transition-colors">{contact.whatsapp}</p>
               </a>
             ) : null}
             
             {contact?.phone ? (
               <a href={`tel:${contact.phone.replace(/\D/g, '')}`} className="contact-card group">
-                <div className="icon-wrapper">
-                  <Phone className="h-6 w-6" />
+                <div className="icon-wrapper !h-10 !w-10 sm:!h-12 sm:!w-12">
+                  <Phone className="h-5 w-5 sm:h-6 sm:w-6" />
                 </div>
-                <h4 className="font-semibold text-foreground">Telefone</h4>
-                <p className="text-sm text-muted-foreground group-hover:text-primary transition-colors">{contact.phone}</p>
+                <h4 className="text-sm sm:text-base font-semibold text-foreground">Telefone</h4>
+                <p className="text-xs sm:text-sm text-muted-foreground group-hover:text-primary transition-colors">{contact.phone}</p>
               </a>
             ) : null}
             
             {contact?.email ? (
               <a href={`mailto:${contact.email}`} className="contact-card group">
-                <div className="icon-wrapper">
-                  <Mail className="h-6 w-6" />
+                <div className="icon-wrapper !h-10 !w-10 sm:!h-12 sm:!w-12">
+                  <Mail className="h-5 w-5 sm:h-6 sm:w-6" />
                 </div>
-                <h4 className="font-semibold text-foreground">Email</h4>
-                <p className="text-sm text-muted-foreground group-hover:text-primary transition-colors">{contact.email}</p>
+                <h4 className="text-sm sm:text-base font-semibold text-foreground">Email</h4>
+                <p className="text-xs sm:text-sm text-muted-foreground group-hover:text-primary transition-colors break-all">{contact.email}</p>
               </a>
             ) : null}
             
@@ -314,11 +314,11 @@ export default async function Home() {
                 rel="noreferrer"
                 className="contact-card group"
               >
-                <div className="icon-wrapper">
-                  <Instagram className="h-6 w-6" />
+                <div className="icon-wrapper !h-10 !w-10 sm:!h-12 sm:!w-12">
+                  <Instagram className="h-5 w-5 sm:h-6 sm:w-6" />
                 </div>
-                <h4 className="font-semibold text-foreground">Instagram</h4>
-                <p className="text-sm text-muted-foreground group-hover:text-primary transition-colors">{contact.instagram}</p>
+                <h4 className="text-sm sm:text-base font-semibold text-foreground">Instagram</h4>
+                <p className="text-xs sm:text-sm text-muted-foreground group-hover:text-primary transition-colors">{contact.instagram}</p>
               </a>
             ) : null}
           </div>
@@ -326,14 +326,14 @@ export default async function Home() {
           {contact?.address ? (
             <Card className="mt-8 border-0 bg-white shadow-lg overflow-hidden">
               <CardContent className="flex flex-col items-center gap-4 p-8 text-center md:flex-row md:text-left">
-                <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-primary to-accent-warm text-white">
+                <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-primary to-accent-sage text-white">
                   <MapPin className="h-8 w-8" />
                 </div>
                 <div>
                   <h4 className="text-lg font-semibold text-foreground">Nosso Endereço</h4>
                   <p className="text-muted-foreground">{contact.address}</p>
                 </div>
-                <Button asChild className="ml-auto bg-gradient-to-r from-primary to-accent-warm text-white shadow-md">
+                <Button asChild className="ml-auto bg-gradient-to-r from-primary to-accent-sage text-white shadow-md">
                   <a 
                     href={`https://maps.google.com/?q=${encodeURIComponent(contact.address)}`}
                     target="_blank"

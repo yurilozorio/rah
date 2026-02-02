@@ -82,21 +82,21 @@ export default async function AboutPage() {
       </Section>
 
       <Section title={about?.teamTitle} subtitle={about?.teamSubtitle} className="bg-secondary/30">
-        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+        <div className="grid grid-cols-2 gap-3 sm:gap-6 lg:grid-cols-3">
           {team.map((member) => {
             const photoUrl = getImageUrl(member.photo);
             return (
-              <Card key={member.id} className="border-0 bg-white/80 shadow-md">
+              <Card key={member.id} className="border-0 bg-white/80 shadow-md overflow-hidden">
                 {photoUrl ? (
-                  <div className="relative h-44 w-full">
+                  <div className="relative aspect-[4/3] w-full overflow-hidden">
                     <Image src={photoUrl} alt={member.name} fill className="object-cover" unoptimized />
                   </div>
                 ) : null}
-                <CardContent className="space-y-2 p-5">
-                  <h3 className="text-lg font-semibold font-display">{member.name}</h3>
-                  {member.role ? <p className="text-sm text-muted-foreground">{member.role}</p> : null}
-                  {member.bio ? <p className="text-sm text-muted-foreground">{member.bio}</p> : null}
-                  {member.instagram ? <p className="text-sm text-muted-foreground">{member.instagram}</p> : null}
+                <CardContent className="space-y-1 sm:space-y-2 p-3 sm:p-5">
+                  <h3 className="text-sm sm:text-lg font-semibold font-display">{member.name}</h3>
+                  {member.role ? <p className="text-xs sm:text-sm text-muted-foreground">{member.role}</p> : null}
+                  {member.bio ? <p className="text-xs sm:text-sm text-muted-foreground line-clamp-2 sm:line-clamp-none">{member.bio}</p> : null}
+                  {member.instagram ? <p className="text-xs sm:text-sm text-muted-foreground">{member.instagram}</p> : null}
                 </CardContent>
               </Card>
             );
@@ -105,21 +105,21 @@ export default async function AboutPage() {
       </Section>
 
       <Section title={about?.proceduresTitle} subtitle={about?.proceduresSubtitle} className="bg-white/80">
-        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+        <div className="grid grid-cols-2 gap-3 sm:gap-6 lg:grid-cols-3">
           {procedures.map((procedure) => {
             const imageUrl = getImageUrl(procedure.coverImage);
             return (
-              <Card key={procedure.id} className="border-0 bg-white shadow-md">
+              <Card key={procedure.id} className="border-0 bg-white shadow-md overflow-hidden">
                 {imageUrl ? (
-                  <div className="relative h-40 w-full">
+                  <div className="relative aspect-[4/3] w-full overflow-hidden">
                     <Image src={imageUrl} alt={procedure.name} fill className="object-cover" unoptimized />
                   </div>
                 ) : null}
-                <CardContent className="space-y-2 p-5">
-                  <h3 className="text-lg font-semibold font-display">{procedure.name}</h3>
-                  <p className="text-sm text-muted-foreground">{procedure.durationMinutes} min</p>
+                <CardContent className="space-y-1 sm:space-y-2 p-3 sm:p-5">
+                  <h3 className="text-sm sm:text-lg font-semibold font-display line-clamp-2">{procedure.name}</h3>
+                  <p className="text-xs sm:text-sm text-muted-foreground">{procedure.durationMinutes} min</p>
                   {procedure.description ? (
-                    <p className="text-sm text-muted-foreground">{procedure.description}</p>
+                    <p className="text-xs sm:text-sm text-muted-foreground line-clamp-2 hidden sm:block">{procedure.description}</p>
                   ) : null}
                 </CardContent>
               </Card>

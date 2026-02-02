@@ -20,11 +20,11 @@ type ServiceSelectionGridProps = {
   onContinue: () => void;
 };
 
-const formatPrice = (cents: number) => {
+const formatPrice = (value: number) => {
   return new Intl.NumberFormat("pt-BR", {
     style: "currency",
     currency: "BRL",
-  }).format(cents / 100);
+  }).format(value);
 };
 
 export function ServiceSelectionGrid({
@@ -46,7 +46,7 @@ export function ServiceSelectionGrid({
       </div>
 
       {/* Services Grid */}
-      <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+      <div className="grid grid-cols-2 gap-3 sm:gap-6 lg:grid-cols-3">
         {services.map((service) => {
           const isSelected = selectedIds.includes(service.id);
           
@@ -58,7 +58,7 @@ export function ServiceSelectionGrid({
               className="text-left"
             >
               <Card 
-                className={`selection-card h-full transition-all duration-200 ${
+                className={`selection-card h-full transition-all duration-200 !p-0 !gap-0 ${
                   isSelected ? "selected" : ""
                 }`}
               >
@@ -73,17 +73,17 @@ export function ServiceSelectionGrid({
                       unoptimized
                     />
                   ) : (
-                    <div className="flex h-full items-center justify-center bg-gradient-to-br from-pink-100 to-rose-100">
-                      <Sparkles className="h-12 w-12 text-primary/40" />
+                    <div className="flex h-full items-center justify-center bg-gradient-to-br from-secondary to-accent/50">
+                      <Sparkles className="h-8 w-8 sm:h-12 sm:w-12 text-primary/40" />
                     </div>
                   )}
                   
                   {/* Selection indicator */}
                   <div className={`check-overlay ${isSelected ? "!bg-primary !opacity-100" : ""}`}>
                     {isSelected ? (
-                      <Check className="h-4 w-4 text-white" />
+                      <Check className="h-3 w-3 sm:h-4 sm:w-4 text-white" />
                     ) : (
-                      <div className="h-4 w-4 rounded-full border-2 border-gray-300" />
+                      <div className="h-3 w-3 sm:h-4 sm:w-4 rounded-full border-2 border-gray-300" />
                     )}
                   </div>
                   
@@ -94,14 +94,14 @@ export function ServiceSelectionGrid({
                 </div>
                 
                 {/* Content */}
-                <CardContent className="p-4">
-                  <h3 className="font-semibold text-foreground">{service.name}</h3>
-                  <div className="mt-2 flex items-center justify-between">
-                    <div className="flex items-center gap-1 text-sm text-muted-foreground">
-                      <Clock className="h-4 w-4" />
+                <CardContent className="p-2 sm:p-4">
+                  <h3 className="text-sm sm:text-base font-semibold text-foreground line-clamp-2">{service.name}</h3>
+                  <div className="mt-1 sm:mt-2 flex items-center justify-between">
+                    <div className="flex items-center gap-1 text-xs sm:text-sm text-muted-foreground">
+                      <Clock className="h-3 w-3 sm:h-4 sm:w-4" />
                       <span>{service.durationMinutes} min</span>
                     </div>
-                    <span className="font-semibold text-primary">{formatPrice(service.price)}</span>
+                    <span className="text-xs sm:text-base font-semibold text-primary">{formatPrice(service.price)}</span>
                   </div>
                 </CardContent>
               </Card>
@@ -110,44 +110,51 @@ export function ServiceSelectionGrid({
         })}
       </div>
 
-      {/* Summary and Continue */}
-      {selectedIds.length > 0 && (
-        <Card className="sticky bottom-4 border-0 bg-gradient-to-r from-primary to-accent-warm p-1 shadow-2xl">
-          <CardContent className="flex flex-col items-center gap-4 rounded-xl bg-white p-6 sm:flex-row sm:justify-between">
-            <div className="flex flex-wrap items-center justify-center gap-6 text-center sm:text-left">
-              <div>
-                <p className="text-sm text-muted-foreground">Selecionados</p>
-                <p className="text-xl font-bold text-foreground">
-                  {selectedIds.length} {selectedIds.length === 1 ? "serviço" : "serviços"}
-                </p>
-              </div>
-              <div className="h-10 w-px bg-border hidden sm:block" />
-              <div>
-                <p className="text-sm text-muted-foreground">Duração total</p>
-                <p className="text-xl font-bold text-foreground">~{totalDuration} min</p>
-              </div>
-              <div className="h-10 w-px bg-border hidden sm:block" />
-              <div>
-                <p className="text-sm text-muted-foreground">Total</p>
-                <p className="text-xl font-bold text-primary">{formatPrice(totalPrice)}</p>
-              </div>
-            </div>
-            <Button
-              onClick={onContinue}
-              size="lg"
-              className="w-full bg-gradient-to-r from-primary to-accent-warm text-white shadow-lg sm:w-auto"
-            >
-              Continuar
-            </Button>
-          </CardContent>
-        </Card>
-      )}
-
       {/* Empty state hint */}
       {selectedIds.length === 0 && (
-        <p className="text-center text-sm text-muted-foreground">
+        <p className="text-center text-sm text-muted-foreground pb-4">
           Selecione pelo menos um serviço para continuar
         </p>
+      )}
+
+      {/* Spacer for fixed bottom bar */}
+      {selectedIds.length > 0 && <div className="h-32 sm:h-24" />}
+
+      {/* Summary and Continue - Fixed at bottom */}
+      {selectedIds.length > 0 && (
+        <div className="fixed bottom-0 left-0 right-0 z-50 p-3 sm:p-4 bg-white/80 backdrop-blur-md border-t border-accent/30">
+          <div className="mx-auto max-w-6xl">
+            <Card className="border-0 bg-gradient-to-r from-primary to-accent-sage p-0.5 sm:p-1 shadow-2xl">
+              <CardContent className="flex flex-col items-center gap-3 sm:gap-4 rounded-xl bg-white p-3 sm:p-4 sm:flex-row sm:justify-between">
+                <div className="flex flex-wrap items-center justify-center gap-4 sm:gap-6 text-center sm:text-left">
+                  <div>
+                    <p className="text-xs sm:text-sm text-muted-foreground">Selecionados</p>
+                    <p className="text-base sm:text-xl font-bold text-foreground">
+                      {selectedIds.length} {selectedIds.length === 1 ? "serviço" : "serviços"}
+                    </p>
+                  </div>
+                  <div className="h-8 sm:h-10 w-px bg-border hidden sm:block" />
+                  <div>
+                    <p className="text-xs sm:text-sm text-muted-foreground">Duração total</p>
+                    <p className="text-base sm:text-xl font-bold text-foreground">~{totalDuration} min</p>
+                  </div>
+                  <div className="h-8 sm:h-10 w-px bg-border hidden sm:block" />
+                  <div>
+                    <p className="text-xs sm:text-sm text-muted-foreground">Total</p>
+                    <p className="text-base sm:text-xl font-bold text-primary">{formatPrice(totalPrice)}</p>
+                  </div>
+                </div>
+                <Button
+                  onClick={onContinue}
+                  size="lg"
+                  className="w-full bg-gradient-to-r from-primary to-accent-sage text-white shadow-lg sm:w-auto"
+                >
+                  Continuar
+                </Button>
+              </CardContent>
+            </Card>
+          </div>
+        </div>
       )}
     </div>
   );

@@ -46,23 +46,23 @@ export default async function ServicesPage() {
   return (
     <div className="relative overflow-hidden">
       {/* Decorative blobs */}
-      <div className="blob blob-pink absolute -top-32 -right-32 h-96 w-96" />
-      <div className="blob blob-coral absolute -bottom-32 -left-32 h-80 w-80" />
+      <div className="blob blob-sage absolute -top-32 -right-32 h-96 w-96" />
+      <div className="blob blob-nude absolute -bottom-32 -left-32 h-80 w-80" />
       
       <Section 
         title={home?.servicesTitle || "Nossos Serviços"} 
         subtitle={home?.servicesSubtitle || "Descubra todos os tratamentos que oferecemos"} 
         className="relative z-10"
       >
-        <div className="grid gap-8 md:grid-cols-2 lg:grid-cols-3">
+        <div className="grid grid-cols-2 gap-3 sm:gap-8 lg:grid-cols-3">
           {services.map((service) => {
             const coverImage = getImageUrl(service.coverImage);
             return (
               <Card 
                 key={service.id} 
-                className="card-hover group overflow-hidden border-0 bg-gradient-to-br from-white to-pink-50/30 shadow-lg"
+                className="card-hover group overflow-hidden border-0 bg-gradient-to-br from-white to-secondary/30 shadow-lg !p-0 !gap-0"
               >
-                <div className="relative aspect-[4/3] w-full overflow-hidden">
+                <div className="relative aspect-[4/3] w-full overflow-hidden rounded-t-xl">
                   {coverImage ? (
                     <>
                       <Image 
@@ -75,46 +75,47 @@ export default async function ServicesPage() {
                       <div className="absolute inset-0 bg-gradient-to-t from-black/30 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
                     </>
                   ) : (
-                    <div className="flex h-full items-center justify-center bg-gradient-to-br from-pink-100 to-rose-100">
-                      <Sparkles className="h-16 w-16 text-primary/40" />
+                    <div className="flex h-full items-center justify-center bg-gradient-to-br from-secondary to-accent/50">
+                      <Sparkles className="h-10 w-10 sm:h-16 sm:w-16 text-primary/40" />
                     </div>
                   )}
-                  {/* Price tag */}
-                  <div className="absolute top-4 right-4 rounded-full bg-white/90 backdrop-blur-sm px-3 py-1 shadow-lg">
-                    <span className="text-sm font-bold text-primary">{formatPrice(service.price)}</span>
-                  </div>
                 </div>
                 
-                <CardContent className="flex flex-col gap-4 p-6">
+                <CardContent className="flex flex-col gap-2 sm:gap-4 p-3 sm:p-6 !px-3 sm:!px-6">
                   <div>
-                    <h3 className="text-xl font-semibold font-display text-foreground group-hover:text-primary transition-colors">
+                    <h3 className="text-sm sm:text-xl font-semibold font-display text-foreground group-hover:text-primary transition-colors line-clamp-2">
                       {service.name}
                     </h3>
-                    <div className="mt-2 flex items-center gap-2 text-sm text-muted-foreground">
-                      <Clock className="h-4 w-4" />
-                      <span>{service.durationMinutes} minutos</span>
+                    <div className="mt-1 sm:mt-2 flex items-center justify-between text-xs sm:text-sm text-muted-foreground">
+                      <span className="flex items-center gap-1">
+                        <Clock className="h-3 w-3 sm:h-4 sm:w-4" />
+                        {service.durationMinutes} min
+                      </span>
+                      <span className="font-semibold text-primary sm:hidden">{formatPrice(service.price)}</span>
                     </div>
                   </div>
                   
                   {service.description && (
-                    <p className="line-clamp-2 text-sm text-muted-foreground">{service.description}</p>
+                    <p className="line-clamp-2 text-xs sm:text-sm text-muted-foreground hidden sm:block">{service.description}</p>
                   )}
                   
-                  <div className="flex gap-3">
+                  <div className="flex flex-col sm:flex-row gap-2 sm:gap-3">
                     <Button 
                       asChild 
                       variant="outline" 
-                      className="flex-1 border-primary/30 hover:border-primary hover:bg-primary/5"
+                      size="sm"
+                      className="flex-1 border-primary/30 hover:border-primary hover:bg-primary/5 text-xs sm:text-sm h-8 sm:h-10"
                     >
                       <Link href={`/services/${service.slug}`}>Ver detalhes</Link>
                     </Button>
                     <Button 
                       asChild 
-                      className="flex-1 bg-gradient-to-r from-primary to-accent-warm text-white shadow-md hover:shadow-lg transition-shadow"
+                      size="sm"
+                      className="flex-1 bg-gradient-to-r from-primary to-accent-sage text-white shadow-md hover:shadow-lg transition-shadow text-xs sm:text-sm h-8 sm:h-10"
                     >
-                      <Link href="/agenda">
+                      <Link href={`/agenda?serviceId=${service.id}`}>
                         Agendar
-                        <ArrowRight className="ml-1 h-4 w-4" />
+                        <ArrowRight className="ml-1 h-3 w-3 sm:h-4 sm:w-4" />
                       </Link>
                     </Button>
                   </div>
@@ -125,8 +126,8 @@ export default async function ServicesPage() {
         </div>
         
         {/* CTA Banner */}
-        <Card className="mt-12 border-0 bg-gradient-to-r from-primary to-accent-warm p-1 shadow-xl">
-          <CardContent className="flex flex-col items-center gap-6 rounded-xl bg-gradient-to-r from-primary to-accent-warm p-8 text-center text-white md:flex-row md:justify-between md:text-left">
+        <Card className="mt-12 border-0 bg-gradient-to-r from-primary to-accent-sage p-1 shadow-xl">
+          <CardContent className="flex flex-col items-center gap-6 rounded-xl bg-gradient-to-r from-primary to-accent-sage p-8 text-center text-white md:flex-row md:justify-between md:text-left">
             <div>
               <h3 className="text-2xl font-bold font-display">Não sabe qual escolher?</h3>
               <p className="mt-2 text-white/90">Entre em contato e ajudamos você a encontrar o tratamento ideal</p>

@@ -512,6 +512,9 @@ export interface ApiContactContact extends Struct.SingleTypeSchema {
   };
   attributes: {
     address: Schema.Attribute.String;
+    businessHours: Schema.Attribute.Text;
+    businessHoursTitle: Schema.Attribute.String &
+      Schema.Attribute.DefaultTo<'Hor\u00E1rio de Funcionamento'>;
     createdAt: Schema.Attribute.DateTime;
     createdBy: Schema.Attribute.Relation<'oneToOne', 'admin::user'> &
       Schema.Attribute.Private;
@@ -524,7 +527,6 @@ export interface ApiContactContact extends Struct.SingleTypeSchema {
       'api::contact.contact'
     > &
       Schema.Attribute.Private;
-    mapUrl: Schema.Attribute.String;
     phone: Schema.Attribute.String;
     publishedAt: Schema.Attribute.DateTime;
     subtitle: Schema.Attribute.String;
@@ -603,7 +605,7 @@ export interface ApiServiceService extends Struct.CollectionTypeSchema {
       Schema.Attribute.Private;
     name: Schema.Attribute.String & Schema.Attribute.Required;
     order: Schema.Attribute.Integer;
-    price: Schema.Attribute.Integer & Schema.Attribute.Required;
+    price: Schema.Attribute.Decimal & Schema.Attribute.Required;
     publishedAt: Schema.Attribute.DateTime;
     slug: Schema.Attribute.UID<'name'> & Schema.Attribute.Required;
     updatedAt: Schema.Attribute.DateTime;

@@ -35,8 +35,12 @@
     "footerNote": {
       "type": "string"
     },
-    "mapUrl": {
-      "type": "string"
+    "businessHoursTitle": {
+      "type": "string",
+      "default": "Horário de Funcionamento"
+    },
+    "businessHours": {
+      "type": "text"
     }
   }
 }
