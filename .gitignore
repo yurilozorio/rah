@@ -136,3 +136,9 @@ ssl
 *.sql
 *.sqlite
 *.sqlite3
+
+# ==============================================
+# Baileys WhatsApp auth state
+# ==============================================
+data/baileys-auth
+baileys-auth

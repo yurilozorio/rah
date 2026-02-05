@@ -89,7 +89,7 @@ RUN apk add --no-cache \
     bash
 
 # Create necessary directories
-RUN mkdir -p /data/postgres /data/uploads /run/postgresql /var/log/supervisor \
+RUN mkdir -p /data/postgres /data/uploads /data/baileys-auth /run/postgresql /var/log/supervisor \
     && chown -R postgres:postgres /data/postgres /run/postgresql
 
 WORKDIR /app

@@ -21,12 +21,6 @@
     "businessName": {
       "type": "string",
       "required": true
-    },
-    "businessLatitude": {
-      "type": "decimal"
-    },
-    "businessLongitude": {
-      "type": "decimal"
     }
   }
 }

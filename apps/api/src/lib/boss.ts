@@ -18,6 +18,9 @@ export const startBoss = async () => {
   const instance = getBoss();
   if (!bossStarted) {
     await instance.start();
+    // Ensure all required queues exist (pg-boss v10 requires explicit queue creation)
+    await instance.createQueue("appointment-reminder");
+    await instance.createQueue("send-whatsapp");
     bossStarted = true;
   }
   return instance;

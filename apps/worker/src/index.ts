@@ -1,9 +1,10 @@
 import "dotenv/config";
 import PgBoss from "pg-boss";
 import { formatInTimeZone } from "date-fns-tz";
-import { PrismaClient } from "@rah/db";
+import { PrismaClient, AppointmentEventType } from "@rah/db";
 import { config } from "./lib/config.js";
-import { sendWhatsAppText } from "./lib/whatsapp.js";
+import { sendWhatsAppMessage } from "./lib/whatsapp.js";
+import { initBaileys } from "./lib/baileys.js";
 import { fetchNotificationSettings } from "./lib/strapi.js";
 
 const prisma = new PrismaClient();
@@ -13,10 +14,22 @@ const boss = new PgBoss({
   schema: "pgboss"
 });
 
+// Initialize Baileys before starting the job queue
+// eslint-disable-next-line no-console
+console.log("Initializing Baileys WhatsApp connection...");
+await initBaileys();
+
 await boss.start();
 
 interface ReminderJobData {
   appointmentId?: string;
+}
+
+interface SendWhatsAppJobData {
+  phone: string;
+  message: string;
+  appointmentId?: string;
+  eventType?: string;
 }
 
 // Helper to compose reminder message from template
@@ -36,6 +49,32 @@ function composeReminderMessage(params: {
     .replace(/\{\{time\}\}/g, time);
 }
 
+// Handler for immediate WhatsApp messages (confirmations, etc.)
+boss.work<SendWhatsAppJobData>("send-whatsapp", { batchSize: 1 }, async ([job]) => {
+  const { phone, message, appointmentId, eventType } = job.data ?? {};
+  if (!phone || !message) return;
+
+  const result = await sendWhatsAppMessage(phone, message);
+
+  if ("failed" in result) {
+    // eslint-disable-next-line no-console
+    console.log(`WhatsApp send failed to ${phone} (reason: ${result.reason})`);
+    return;
+  }
+
+  if ("success" in result && appointmentId && eventType) {
+    await prisma.appointmentEvent.create({
+      data: {
+        appointmentId,
+        type: eventType as AppointmentEventType
+      }
+    });
+    // eslint-disable-next-line no-console
+    console.log(`WhatsApp ${eventType} sent to ${phone} for appointment ${appointmentId}`);
+  }
+});
+
+// Handler for scheduled appointment reminders
 boss.work<ReminderJobData>("appointment-reminder", { batchSize: 1 }, async ([job]) => {
   const appointmentId = job.data?.appointmentId;
   if (!appointmentId) return;
@@ -70,32 +109,27 @@ boss.work<ReminderJobData>("appointment-reminder", { batchSize: 1 }, async ([job
     time: timeLabel
   });
 
-  // Send via WhatsApp session message
-  const result = await sendWhatsAppText(appointment.user.phone, message);
-
-  if ("skipped" in result) {
-    // eslint-disable-next-line no-console
-    console.log("WhatsApp credentials not configured, skipping");
-    return;
-  }
+  // Send via Baileys
+  const result = await sendWhatsAppMessage(appointment.user.phone, message);
 
   if ("failed" in result) {
-    // Session not active - this is expected for users who haven't messaged on WhatsApp
     // eslint-disable-next-line no-console
     console.log(`WhatsApp reminder failed (reason: ${result.reason}), skipping`);
     return;
   }
 
-  // Log success
-  await prisma.appointmentEvent.create({
-    data: {
-      appointmentId: appointment.id,
-      type: "REMINDER_SENT"
-    }
-  });
-  
-  // eslint-disable-next-line no-console
-  console.log(`Reminder sent for appointment ${appointmentId}`);
+  if ("success" in result) {
+    // Log success
+    await prisma.appointmentEvent.create({
+      data: {
+        appointmentId: appointment.id,
+        type: "REMINDER_SENT"
+      }
+    });
+    
+    // eslint-disable-next-line no-console
+    console.log(`Reminder sent for appointment ${appointmentId}`);
+  }
 });
 
 process.on("SIGINT", async () => {

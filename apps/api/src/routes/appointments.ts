@@ -20,7 +20,7 @@ import {
   WeekSchedule
 } from "../lib/availability.js";
 import { getBoss } from "../lib/boss.js";
-import { sendWhatsAppText } from "../lib/whatsapp.js";
+import { queueWhatsAppMessage } from "../lib/whatsapp.js";
 import { generateGoogleCalendarLink } from "../lib/calendar.js";
 import { generateGoogleMapsLink } from "../lib/maps.js";
 
@@ -42,6 +42,25 @@ const batchCreateSchema = z.object({
 
 // Default slot interval (30 minutes)
 const DEFAULT_SLOT_INTERVAL = 30;
+
+// Brazil country code
+const BRAZIL_COUNTRY_CODE = "55";
+
+/**
+ * Normalize phone number: remove non-digits and add Brazil country code if needed.
+ * Users enter DDD + number (e.g., 27996975347), we prepend 55 for WhatsApp.
+ */
+function normalizePhoneNumber(phone: string): string {
+  const digitsOnly = phone.replace(/\D/g, "");
+  
+  // If already starts with 55 and has the right length (13 digits for mobile), keep as is
+  if (digitsOnly.startsWith(BRAZIL_COUNTRY_CODE) && digitsOnly.length >= 12) {
+    return digitsOnly;
+  }
+  
+  // Otherwise, prepend Brazil country code
+  return `${BRAZIL_COUNTRY_CODE}${digitsOnly}`;
+}
 
 // Helper to compose WhatsApp confirmation message from template
 type ComposeMessageParams = {
@@ -70,22 +89,23 @@ function composeMessage(params: ComposeMessageParams): string {
     .replace(/\{\{calendarLink\}\}/g, calendarLink);
 }
 
-// Helper to send WhatsApp confirmation using session message
-async function sendConfirmationMessage(params: {
+// Helper to queue WhatsApp confirmation via Baileys worker
+async function queueConfirmationMessage(params: {
   phone: string;
   userName: string;
   services: Array<{ name: string; durationMinutes: number; price: number }>;
   startAt: Date;
   endAt: Date;
+  appointmentId: string;
   notificationSettings: NotificationSettings | null;
   contactInfo: ContactInfo | null;
   log: { info: (msg: any, ...args: any[]) => void; error: (msg: any, ...args: any[]) => void };
-}): Promise<{ sent: boolean; reason?: string }> {
-  const { phone, userName, services, startAt, endAt, notificationSettings, contactInfo, log } = params;
+}): Promise<void> {
+  const { phone, userName, services, startAt, endAt, appointmentId, notificationSettings, contactInfo, log } = params;
 
   if (!notificationSettings?.confirmationMessageTemplate) {
     log.info("No confirmation template configured, skipping WhatsApp");
-    return { sent: false, reason: "no_template" };
+    return;
   }
 
   const dateLabel = formatInTimeZone(startAt, config.TIMEZONE, "dd/MM/yyyy");
@@ -94,12 +114,8 @@ async function sendConfirmationMessage(params: {
   const totalDuration = services.reduce((sum, s) => sum + s.durationMinutes, 0);
   const totalPrice = services.reduce((sum, s) => sum + s.price, 0);
 
-  // Generate map link
-  const mapLink = generateGoogleMapsLink({
-    latitude: notificationSettings.businessLatitude,
-    longitude: notificationSettings.businessLongitude,
-    address: contactInfo?.address
-  });
+  // Generate map link from address
+  const mapLink = generateGoogleMapsLink(contactInfo?.address);
 
   // Generate calendar link
   const calendarLink = generateGoogleCalendarLink({
@@ -124,20 +140,9 @@ async function sendConfirmationMessage(params: {
     calendarLink
   });
 
-  // Send via WhatsApp session message
-  const result = await sendWhatsAppText(phone, message);
-
-  if ("skipped" in result) {
-    log.info("WhatsApp credentials not configured, skipping");
-    return { sent: false, reason: "no_credentials" };
-  }
-
-  if ("failed" in result) {
-    log.info({ reason: result.reason, error: result.error }, "WhatsApp session message failed");
-    return { sent: false, reason: result.reason };
-  }
-
-  return { sent: true };
+  // Queue for async send via Baileys worker
+  await queueWhatsAppMessage(phone, message, appointmentId, "CONFIRMATION_SENT");
+  log.info({ phone, appointmentId }, "WhatsApp confirmation queued");
 }
 
 // Helper to get global availability schedule
@@ -286,8 +291,9 @@ export const registerAppointmentRoutes = (app: FastifyInstance) => {
       return reply.code(409).send({ message: "Slot not available" });
     }
 
-    // Normalize phone (remove non-digits)
-    const normalizedPhone = data.phone.replace(/\D/g, "");
+    // Normalize phone (remove non-digits and add country code)
+    const normalizedPhone = normalizePhoneNumber(data.phone);
+    request.log.info({ originalPhone: data.phone, normalizedPhone }, "Phone normalization");
 
     // Find or create Strapi client
     let strapiClientId: string | null = null;
@@ -347,34 +353,26 @@ export const registerAppointmentRoutes = (app: FastifyInstance) => {
       }
     }
 
-    // Send WhatsApp confirmation using session message
+    // Queue WhatsApp confirmation via Baileys worker
     try {
       const [notificationSettings, contactInfo] = await Promise.all([
         fetchNotificationSettings(),
         fetchContactInfo()
       ]);
 
-      const confirmResult = await sendConfirmationMessage({
+      await queueConfirmationMessage({
         phone: user.phone,
         userName: user.name,
         services: [{ name: service.name, durationMinutes: service.durationMinutes, price: service.price }],
         startAt,
         endAt,
+        appointmentId: appointment.id,
         notificationSettings,
         contactInfo,
         log: request.log
       });
-
-      if (confirmResult.sent) {
-        await prisma.appointmentEvent.create({
-          data: {
-            appointmentId: appointment.id,
-            type: "CONFIRMATION_SENT"
-          }
-        });
-      }
     } catch (error) {
-      request.log.error({ error }, "Failed to send confirmation");
+      request.log.error({ error }, "Failed to queue confirmation");
     }
 
     // Schedule reminder
@@ -502,8 +500,8 @@ export const registerAppointmentRoutes = (app: FastifyInstance) => {
       return reply.code(409).send({ message: "Slot not available" });
     }
 
-    // Normalize phone
-    const normalizedPhone = data.phone.replace(/\D/g, "");
+    // Normalize phone (remove non-digits and add country code)
+    const normalizedPhone = normalizePhoneNumber(data.phone);
 
     // Find or create Strapi client
     let strapiClientId: string | null = null;
@@ -570,14 +568,14 @@ export const registerAppointmentRoutes = (app: FastifyInstance) => {
       }
     }
 
-    // Send WhatsApp confirmation for the batch using session message
+    // Queue WhatsApp confirmation for the batch via Baileys worker
     try {
       const [notificationSettings, contactInfo] = await Promise.all([
         fetchNotificationSettings(),
         fetchContactInfo()
       ]);
 
-      const confirmResult = await sendConfirmationMessage({
+      await queueConfirmationMessage({
         phone: user.phone,
         userName: user.name,
         services: services.map(s => ({ 
@@ -587,22 +585,13 @@ export const registerAppointmentRoutes = (app: FastifyInstance) => {
         })),
         startAt: initialStartAt,
         endAt: finalEndAt,
+        appointmentId: appointments[0].id,
         notificationSettings,
         contactInfo,
         log: request.log
       });
-
-      if (confirmResult.sent) {
-        // Log confirmation for first appointment
-        await prisma.appointmentEvent.create({
-          data: {
-            appointmentId: appointments[0].id,
-            type: "CONFIRMATION_SENT"
-          }
-        });
-      }
     } catch (error) {
-      request.log.error({ error }, "Failed to send confirmation");
+      request.log.error({ error }, "Failed to queue confirmation");
     }
 
     // Schedule reminder for first appointment

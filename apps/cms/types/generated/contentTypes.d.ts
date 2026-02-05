@@ -590,8 +590,6 @@ export interface ApiNotificationSettingNotificationSetting
     draftAndPublish: false;
   };
   attributes: {
-    businessLatitude: Schema.Attribute.Decimal;
-    businessLongitude: Schema.Attribute.Decimal;
     businessName: Schema.Attribute.String & Schema.Attribute.Required;
     confirmationMessageTemplate: Schema.Attribute.Text &
       Schema.Attribute.Required;

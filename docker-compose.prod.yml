@@ -75,11 +75,6 @@ services:
       JWT_SECRET: ${API_JWT_SECRET:?API_JWT_SECRET is required}
       STRAPI_URL: http://cms:1337
       STRAPI_API_TOKEN: ${STRAPI_API_TOKEN:?STRAPI_API_TOKEN is required}
-      WHATSAPP_ACCESS_TOKEN: ${WHATSAPP_ACCESS_TOKEN:-}
-      WHATSAPP_PHONE_NUMBER_ID: ${WHATSAPP_PHONE_NUMBER_ID:-}
-      WHATSAPP_BUSINESS_ACCOUNT_ID: ${WHATSAPP_BUSINESS_ACCOUNT_ID:-}
-      WHATSAPP_TEMPLATE_CONFIRMATION: ${WHATSAPP_TEMPLATE_CONFIRMATION:-}
-      WHATSAPP_TEMPLATE_REMINDER: ${WHATSAPP_TEMPLATE_REMINDER:-}
       TIMEZONE: ${TIMEZONE:-America/Sao_Paulo}
       BUSINESS_START_MIN: ${BUSINESS_START_MIN:-540}
       BUSINESS_END_MIN: ${BUSINESS_END_MIN:-1140}
@@ -112,10 +107,10 @@ services:
       DATABASE_URL: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}@postgres:5432/${POSTGRES_DB:-app}?schema=api
       STRAPI_URL: http://cms:1337
       STRAPI_API_TOKEN: ${STRAPI_API_TOKEN:?STRAPI_API_TOKEN is required}
-      WHATSAPP_ACCESS_TOKEN: ${WHATSAPP_ACCESS_TOKEN:-}
-      WHATSAPP_PHONE_NUMBER_ID: ${WHATSAPP_PHONE_NUMBER_ID:-}
-      WHATSAPP_TEMPLATE_REMINDER: ${WHATSAPP_TEMPLATE_REMINDER:-}
+      BAILEYS_AUTH_DIR: /data/baileys-auth
       TIMEZONE: ${TIMEZONE:-America/Sao_Paulo}
+    volumes:
+      - baileys_auth:/data/baileys-auth
     networks:
       - internal
     depends_on:
@@ -190,3 +185,4 @@ networks:
 volumes:
   postgres_data:
   cms_uploads:
+  baileys_auth:
