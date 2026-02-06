@@ -3,9 +3,10 @@ import PgBoss from "pg-boss";
 import { formatInTimeZone } from "date-fns-tz";
 import { PrismaClient, AppointmentEventType } from "@rah/db";
 import { config } from "./lib/config.js";
-import { sendWhatsAppMessage } from "./lib/whatsapp.js";
+import { sendBaileysMessage, sendBaileysLocation, sendBaileysDocument, isBaileysReady } from "./lib/whatsapp.js";
 import { initBaileys } from "./lib/baileys.js";
 import { fetchNotificationSettings } from "./lib/strapi.js";
+import { generateIcsFile } from "./lib/ics.js";
 
 const prisma = new PrismaClient();
 
@@ -30,6 +31,21 @@ interface SendWhatsAppJobData {
   message: string;
   appointmentId?: string;
   eventType?: string;
+  location?: {
+    latitude: number;
+    longitude: number;
+    name: string;
+    address: string;
+  };
+  calendar?: {
+    title: string;
+    startAt: string;
+    endAt: string;
+    location?: string;
+    description?: string;
+    timezone: string;
+    caption?: string;
+  };
 }
 
 // Helper to compose reminder message from template
@@ -51,18 +67,50 @@ function composeReminderMessage(params: {
 
 // Handler for immediate WhatsApp messages (confirmations, etc.)
 boss.work<SendWhatsAppJobData>("send-whatsapp", { batchSize: 1 }, async ([job]) => {
-  const { phone, message, appointmentId, eventType } = job.data ?? {};
+  const { phone, message, appointmentId, eventType, location, calendar } = job.data ?? {};
   if (!phone || !message) return;
 
-  const result = await sendWhatsAppMessage(phone, message);
-
-  if ("failed" in result) {
+  if (!isBaileysReady()) {
     // eslint-disable-next-line no-console
-    console.log(`WhatsApp send failed to ${phone} (reason: ${result.reason})`);
+    console.log(`WhatsApp not connected, skipping send to ${phone}`);
     return;
   }
 
-  if ("success" in result && appointmentId && eventType) {
+  // 1. Send text message
+  const result = await sendBaileysMessage(phone, message);
+
+  if ("failed" in result) {
+    // eslint-disable-next-line no-console
+    console.log(`WhatsApp text send failed to ${phone} (reason: ${result.reason})`);
+    return;
+  }
+
+  // 2. Send native location card (if coordinates available)
+  if (location) {
+    const locResult = await sendBaileysLocation(phone, location);
+    if ("failed" in locResult) {
+      // eslint-disable-next-line no-console
+      console.log(`WhatsApp location send failed to ${phone} (reason: ${locResult.reason})`);
+    }
+  }
+
+  // 3. Send .ics calendar file (if calendar data available)
+  if (calendar) {
+    const icsBuffer = generateIcsFile(calendar);
+    const docResult = await sendBaileysDocument(phone, {
+      data: icsBuffer,
+      mimetype: "text/calendar",
+      fileName: "agendamento.ics",
+      caption: calendar.caption || undefined
+    });
+    if ("failed" in docResult) {
+      // eslint-disable-next-line no-console
+      console.log(`WhatsApp calendar send failed to ${phone} (reason: ${docResult.reason})`);
+    }
+  }
+
+  // Log event on success
+  if (appointmentId && eventType) {
     await prisma.appointmentEvent.create({
       data: {
         appointmentId,
@@ -110,7 +158,7 @@ boss.work<ReminderJobData>("appointment-reminder", { batchSize: 1 }, async ([job
   });
 
   // Send via Baileys
-  const result = await sendWhatsAppMessage(appointment.user.phone, message);
+  const result = await sendBaileysMessage(appointment.user.phone, message);
 
   if ("failed" in result) {
     // eslint-disable-next-line no-console

@@ -86,16 +86,12 @@ export function isBaileysReady(): boolean {
   return connectionReady && sock !== null;
 }
 
+type BaileysResult = { success: true; messageId: string } | { failed: true; reason: string };
+
 /**
  * Send a text message via Baileys.
- * @param phone - Phone number in format "5527996975347" (digits only, with country code)
- * @param message - Text message to send
- * @returns Object indicating success or failure
  */
-export async function sendBaileysMessage(
-  phone: string,
-  message: string
-): Promise<{ success: true; messageId: string } | { failed: true; reason: string }> {
+export async function sendBaileysMessage(phone: string, message: string): Promise<BaileysResult> {
   if (!sock || !connectionReady) {
     return { failed: true, reason: "not_connected" };
   }
@@ -110,6 +106,68 @@ export async function sendBaileysMessage(
     const errorMessage = error instanceof Error ? error.message : String(error);
     // eslint-disable-next-line no-console
     console.error(`Baileys send failed to ${phone}: ${errorMessage}`);
+    return { failed: true, reason: errorMessage };
+  }
+}
+
+/**
+ * Send a native WhatsApp location message.
+ */
+export async function sendBaileysLocation(
+  phone: string,
+  location: { latitude: number; longitude: number; name: string; address: string }
+): Promise<BaileysResult> {
+  if (!sock || !connectionReady) {
+    return { failed: true, reason: "not_connected" };
+  }
+
+  const jid = `${phone}@s.whatsapp.net`;
+
+  try {
+    const result = await sock.sendMessage(jid, {
+      location: {
+        degreesLatitude: location.latitude,
+        degreesLongitude: location.longitude,
+        name: location.name,
+        address: location.address
+      }
+    });
+    const messageId = result?.key?.id ?? "unknown";
+    return { success: true, messageId };
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    // eslint-disable-next-line no-console
+    console.error(`Baileys location send failed to ${phone}: ${errorMessage}`);
+    return { failed: true, reason: errorMessage };
+  }
+}
+
+/**
+ * Send a document (file) via Baileys.
+ */
+export async function sendBaileysDocument(
+  phone: string,
+  document: { data: Buffer; mimetype: string; fileName: string; caption?: string }
+): Promise<BaileysResult> {
+  if (!sock || !connectionReady) {
+    return { failed: true, reason: "not_connected" };
+  }
+
+  const jid = `${phone}@s.whatsapp.net`;
+
+  try {
+    const result = await sock.sendMessage(jid, {
+      document: document.data,
+      mimetype: document.mimetype,
+      fileName: document.fileName,
+      caption: document.caption
+    });
+    const messageId = result?.key?.id ?? "unknown";
+    return { success: true, messageId };
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    // eslint-disable-next-line no-console
+    console.error(`Baileys document send failed to ${phone}: ${errorMessage}`);
     return { failed: true, reason: errorMessage };
   }
 }

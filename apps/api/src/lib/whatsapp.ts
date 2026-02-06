@@ -1,27 +1,37 @@
-import { getBoss, startBoss } from "./boss.js";
+import { startBoss } from "./boss.js";
+
+export type WhatsAppLocationData = {
+  latitude: number;
+  longitude: number;
+  name: string;
+  address: string;
+};
+
+export type WhatsAppCalendarData = {
+  title: string;
+  startAt: string; // ISO string
+  endAt: string;   // ISO string
+  location?: string;
+  description?: string;
+  timezone: string;
+  caption?: string;
+};
 
 /**
  * Queue a WhatsApp message to be sent by the worker via Baileys.
- * This is fire-and-forget from the API's perspective.
- *
- * @param phone - Phone number with country code (e.g. "5527996975347")
- * @param message - Text message to send
- * @param appointmentId - Optional appointment ID for event logging
- * @param eventType - Optional event type (e.g. "CONFIRMATION_SENT") to log on success
+ * Supports sending a text message, optionally followed by a location card
+ * and/or a .ics calendar file attachment.
  */
-export const queueWhatsAppMessage = async (
-  phone: string,
-  message: string,
-  appointmentId?: string,
-  eventType?: string
-): Promise<void> => {
+export const queueWhatsAppMessage = async (params: {
+  phone: string;
+  message: string;
+  appointmentId?: string;
+  eventType?: string;
+  location?: WhatsAppLocationData;
+  calendar?: WhatsAppCalendarData;
+}): Promise<void> => {
   const boss = await startBoss();
-  const jobId = await boss.send("send-whatsapp", {
-    phone,
-    message,
-    appointmentId,
-    eventType
-  });
+  const jobId = await boss.send("send-whatsapp", params);
   // eslint-disable-next-line no-console
   console.log(`[whatsapp] Queued send-whatsapp job: ${jobId}`);
 };

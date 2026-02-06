@@ -220,6 +220,9 @@ export type NotificationSettings = {
   confirmationMessageTemplate: string;
   reminderMessageTemplate: string | null;
   businessName: string;
+  businessLatitude: string | null;
+  businessLongitude: string | null;
+  calendarCaption: string | null;
 };
 
 // Simple in-memory cache for notification settings
@@ -264,7 +267,10 @@ export const fetchNotificationSettings = async (): Promise<NotificationSettings 
   const settings: NotificationSettings = {
     confirmationMessageTemplate: String(attributes?.confirmationMessageTemplate ?? ""),
     reminderMessageTemplate: attributes?.reminderMessageTemplate ? String(attributes.reminderMessageTemplate) : null,
-    businessName: String(attributes?.businessName ?? "")
+    businessName: String(attributes?.businessName ?? ""),
+    businessLatitude: attributes?.businessLatitude ? String(attributes.businessLatitude) : null,
+    businessLongitude: attributes?.businessLongitude ? String(attributes.businessLongitude) : null,
+    calendarCaption: attributes?.calendarCaption ? String(attributes.calendarCaption) : null
   };
 
   // Update cache

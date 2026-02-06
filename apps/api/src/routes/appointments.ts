@@ -21,8 +21,6 @@ import {
 } from "../lib/availability.js";
 import { getBoss } from "../lib/boss.js";
 import { queueWhatsAppMessage } from "../lib/whatsapp.js";
-import { generateGoogleCalendarLink } from "../lib/calendar.js";
-import { generateGoogleMapsLink } from "../lib/maps.js";
 
 const createSchema = z.object({
   serviceId: z.number(),
@@ -71,12 +69,10 @@ type ComposeMessageParams = {
   time: string;
   totalDuration: number;
   totalPrice: number;
-  mapLink: string | null;
-  calendarLink: string;
 };
 
 function composeMessage(params: ComposeMessageParams): string {
-  const { template, name, services, date, time, totalDuration, totalPrice, mapLink, calendarLink } = params;
+  const { template, name, services, date, time, totalDuration, totalPrice } = params;
   
   return template
     .replace(/\{\{name\}\}/g, name)
@@ -84,9 +80,7 @@ function composeMessage(params: ComposeMessageParams): string {
     .replace(/\{\{date\}\}/g, date)
     .replace(/\{\{time\}\}/g, time)
     .replace(/\{\{totalDuration\}\}/g, String(totalDuration))
-    .replace(/\{\{totalPrice\}\}/g, totalPrice.toFixed(2).replace(".", ","))
-    .replace(/\{\{mapLink\}\}/g, mapLink ?? "")
-    .replace(/\{\{calendarLink\}\}/g, calendarLink);
+    .replace(/\{\{totalPrice\}\}/g, totalPrice.toFixed(2).replace(".", ","));
 }
 
 // Helper to queue WhatsApp confirmation via Baileys worker
@@ -114,20 +108,7 @@ async function queueConfirmationMessage(params: {
   const totalDuration = services.reduce((sum, s) => sum + s.durationMinutes, 0);
   const totalPrice = services.reduce((sum, s) => sum + s.price, 0);
 
-  // Generate map link from address
-  const mapLink = generateGoogleMapsLink(contactInfo?.address);
-
-  // Generate calendar link
-  const calendarLink = generateGoogleCalendarLink({
-    title: `Agendamento - ${notificationSettings.businessName}`,
-    startAt,
-    endAt,
-    location: contactInfo?.address ?? undefined,
-    description: `Procedimentos: ${serviceNames}`,
-    timezone: config.TIMEZONE
-  });
-
-  // Compose message
+  // Compose text message (clean, no URLs)
   const message = composeMessage({
     template: notificationSettings.confirmationMessageTemplate,
     name: userName,
@@ -135,13 +116,39 @@ async function queueConfirmationMessage(params: {
     date: dateLabel,
     time: timeLabel,
     totalDuration,
-    totalPrice,
-    mapLink,
-    calendarLink
+    totalPrice
   });
 
+  // Build location data for native WhatsApp location message
+  const locationData = notificationSettings.businessLatitude && notificationSettings.businessLongitude
+    ? {
+        latitude: Number(notificationSettings.businessLatitude),
+        longitude: Number(notificationSettings.businessLongitude),
+        name: notificationSettings.businessName,
+        address: contactInfo?.address ?? ""
+      }
+    : undefined;
+
+  // Build calendar data for .ics file attachment
+  const calendarData = {
+    title: `Agendamento - ${notificationSettings.businessName}`,
+    startAt: startAt.toISOString(),
+    endAt: endAt.toISOString(),
+    location: contactInfo?.address ?? undefined,
+    description: `Procedimentos: ${serviceNames}`,
+    timezone: config.TIMEZONE,
+    caption: notificationSettings.calendarCaption ?? undefined
+  };
+
   // Queue for async send via Baileys worker
-  await queueWhatsAppMessage(phone, message, appointmentId, "CONFIRMATION_SENT");
+  await queueWhatsAppMessage({
+    phone,
+    message,
+    appointmentId,
+    eventType: "CONFIRMATION_SENT",
+    location: locationData,
+    calendar: calendarData
+  });
   log.info({ phone, appointmentId }, "WhatsApp confirmation queued");
 }
 

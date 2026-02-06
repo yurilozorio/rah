@@ -590,7 +590,10 @@ export interface ApiNotificationSettingNotificationSetting
     draftAndPublish: false;
   };
   attributes: {
+    businessLatitude: Schema.Attribute.String;
+    businessLongitude: Schema.Attribute.String;
     businessName: Schema.Attribute.String & Schema.Attribute.Required;
+    calendarCaption: Schema.Attribute.String;
     confirmationMessageTemplate: Schema.Attribute.Text &
       Schema.Attribute.Required;
     createdAt: Schema.Attribute.DateTime;

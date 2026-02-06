@@ -21,6 +21,15 @@
     "businessName": {
       "type": "string",
       "required": true
+    },
+    "businessLatitude": {
+      "type": "string"
+    },
+    "businessLongitude": {
+      "type": "string"
+    },
+    "calendarCaption": {
+      "type": "string"
     }
   }
 }
