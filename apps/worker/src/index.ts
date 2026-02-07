@@ -100,7 +100,7 @@ boss.work<SendWhatsAppJobData>("send-whatsapp", { batchSize: 1 }, async ([job]) 
     const docResult = await sendBaileysDocument(phone, {
       data: icsBuffer,
       mimetype: "text/calendar",
-      fileName: "agendamento.ics",
+      fileName: "Agendamento.ics",
       caption: calendar.caption || undefined
     });
     if ("failed" in docResult) {
@@ -179,6 +179,95 @@ boss.work<ReminderJobData>("appointment-reminder", { batchSize: 1 }, async ([job
     console.log(`Reminder sent for appointment ${appointmentId}`);
   }
 });
+
+// ============================================
+// Promotion end-behavior cron job
+// ============================================
+
+async function checkExpiredPromotions() {
+  const now = new Date();
+  
+  try {
+    // Fetch ended promotions that are still active with deactivate behavior
+    const url = new URL("/api/promotions", config.STRAPI_URL);
+    url.searchParams.set("populate", "service");
+    url.searchParams.set("filters[endDate][$lt]", now.toISOString());
+    url.searchParams.set("filters[endBehavior][$eq]", "deactivate");
+    url.searchParams.set("filters[active][$eq]", "true");
+    url.searchParams.set("pagination[pageSize]", "100");
+
+    const response = await fetch(url.toString(), {
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${config.STRAPI_API_TOKEN}`
+      }
+    });
+
+    if (!response.ok) {
+      // eslint-disable-next-line no-console
+      console.log(`Failed to fetch promotions: ${response.status}`);
+      return;
+    }
+
+    const json = await response.json();
+    const promotions = json?.data ?? [];
+
+    // eslint-disable-next-line no-console
+    console.log(`Found ${promotions.length} ended deactivate promotion(s) to check`);
+
+    for (const promo of promotions) {
+      const attrs = promo?.attributes ?? promo;
+      const promoId = promo.documentId ?? promo.id;
+      const serviceData = attrs.service?.data ?? attrs.service;
+      const serviceId = serviceData?.documentId ?? serviceData?.id;
+      if (!serviceId) continue;
+
+      try {
+        // Unpublish the linked service
+        const svcUrl = new URL(`/api/services/${serviceId}/unpublish`, config.STRAPI_URL);
+        const svcRes = await fetch(svcUrl.toString(), {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${config.STRAPI_API_TOKEN}`
+          }
+        });
+        // eslint-disable-next-line no-console
+        console.log(`Unpublished service ${serviceId} (status: ${svcRes.status})`);
+
+        // Deactivate the promotion so it won't be processed again
+        const promoUrl = new URL(`/api/promotions/${promoId}`, config.STRAPI_URL);
+        const promoRes = await fetch(promoUrl.toString(), {
+          method: "PUT",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${config.STRAPI_API_TOKEN}`
+          },
+          body: JSON.stringify({ data: { active: false } })
+        });
+        // eslint-disable-next-line no-console
+        console.log(`Deactivated promotion ${promoId} (status: ${promoRes.status})`);
+      } catch (error) {
+        // eslint-disable-next-line no-console
+        console.error(`Failed to process promotion ${promoId}:`, error);
+      }
+    }
+  } catch (error) {
+    // eslint-disable-next-line no-console
+    console.error("Failed to check expired promotions:", error);
+  }
+}
+
+// Schedule promotion check every 5 minutes
+await boss.createQueue("check-expired-promotions");
+await boss.schedule("check-expired-promotions", "*/5 * * * *", {}, { tz: config.TIMEZONE });
+
+boss.work("check-expired-promotions", { batchSize: 1 }, async () => {
+  await checkExpiredPromotions();
+});
+
+// Run once at startup
+checkExpiredPromotions().catch(() => {});
 
 process.on("SIGINT", async () => {
   await boss.stop();

@@ -82,10 +82,10 @@ export default function AdminPage() {
         </Card>
         <Card>
           <CardContent className="space-y-2 sm:space-y-3 p-3 sm:p-5">
-            <h2 className="text-sm sm:text-lg font-semibold">Calendário</h2>
-            <p className="text-xs sm:text-sm text-muted-foreground hidden sm:block">Visão mensal da agenda.</p>
+            <h2 className="text-sm sm:text-lg font-semibold">Financeiro</h2>
+            <p className="text-xs sm:text-sm text-muted-foreground hidden sm:block">Receitas, custos e lucro.</p>
             <Button asChild variant="outline" size="sm" className="text-xs sm:text-sm h-8 sm:h-10">
-              <Link href="/painel/calendar">Abrir calendário</Link>
+              <Link href="/painel/financeiro">Ver financeiro</Link>
             </Button>
           </CardContent>
         </Card>

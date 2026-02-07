@@ -527,6 +527,7 @@ export interface ApiContactContact extends Struct.SingleTypeSchema {
       'api::contact.contact'
     > &
       Schema.Attribute.Private;
+    paymentMethodsText: Schema.Attribute.String;
     phone: Schema.Attribute.String;
     publishedAt: Schema.Attribute.DateTime;
     subtitle: Schema.Attribute.String;
@@ -594,6 +595,8 @@ export interface ApiNotificationSettingNotificationSetting
     businessLongitude: Schema.Attribute.String;
     businessName: Schema.Attribute.String & Schema.Attribute.Required;
     calendarCaption: Schema.Attribute.String;
+    cancellationMessageTemplate: Schema.Attribute.Text;
+    completionMessageTemplate: Schema.Attribute.Text;
     confirmationMessageTemplate: Schema.Attribute.Text &
       Schema.Attribute.Required;
     createdAt: Schema.Attribute.DateTime;
@@ -613,6 +616,79 @@ export interface ApiNotificationSettingNotificationSetting
   };
 }
 
+export interface ApiPaymentMethodPaymentMethod
+  extends Struct.CollectionTypeSchema {
+  collectionName: 'payment_methods';
+  info: {
+    description: 'Available payment methods';
+    displayName: 'Payment Method';
+    pluralName: 'payment-methods';
+    singularName: 'payment-method';
+  };
+  options: {
+    draftAndPublish: false;
+  };
+  attributes: {
+    createdAt: Schema.Attribute.DateTime;
+    createdBy: Schema.Attribute.Relation<'oneToOne', 'admin::user'> &
+      Schema.Attribute.Private;
+    locale: Schema.Attribute.String & Schema.Attribute.Private;
+    localizations: Schema.Attribute.Relation<
+      'oneToMany',
+      'api::payment-method.payment-method'
+    > &
+      Schema.Attribute.Private;
+    name: Schema.Attribute.String &
+      Schema.Attribute.Required &
+      Schema.Attribute.Unique;
+    publishedAt: Schema.Attribute.DateTime;
+    updatedAt: Schema.Attribute.DateTime;
+    updatedBy: Schema.Attribute.Relation<'oneToOne', 'admin::user'> &
+      Schema.Attribute.Private;
+  };
+}
+
+export interface ApiPromotionPromotion extends Struct.CollectionTypeSchema {
+  collectionName: 'promotions';
+  info: {
+    description: 'Service promotions with time-limited discounts';
+    displayName: 'Promotion';
+    pluralName: 'promotions';
+    singularName: 'promotion';
+  };
+  options: {
+    draftAndPublish: false;
+  };
+  attributes: {
+    active: Schema.Attribute.Boolean & Schema.Attribute.DefaultTo<true>;
+    createdAt: Schema.Attribute.DateTime;
+    createdBy: Schema.Attribute.Relation<'oneToOne', 'admin::user'> &
+      Schema.Attribute.Private;
+    endBehavior: Schema.Attribute.Enumeration<['revert', 'deactivate']> &
+      Schema.Attribute.Required &
+      Schema.Attribute.DefaultTo<'revert'>;
+    endDate: Schema.Attribute.DateTime & Schema.Attribute.Required;
+    locale: Schema.Attribute.String & Schema.Attribute.Private;
+    localizations: Schema.Attribute.Relation<
+      'oneToMany',
+      'api::promotion.promotion'
+    > &
+      Schema.Attribute.Private;
+    name: Schema.Attribute.String & Schema.Attribute.Required;
+    promotionalPrice: Schema.Attribute.Decimal & Schema.Attribute.Required;
+    publishedAt: Schema.Attribute.DateTime;
+    service: Schema.Attribute.Relation<'manyToOne', 'api::service.service'>;
+    startDate: Schema.Attribute.DateTime & Schema.Attribute.Required;
+    updatedAt: Schema.Attribute.DateTime;
+    updatedBy: Schema.Attribute.Relation<'oneToOne', 'admin::user'> &
+      Schema.Attribute.Private;
+    validPaymentMethods: Schema.Attribute.Relation<
+      'manyToMany',
+      'api::payment-method.payment-method'
+    >;
+  };
+}
+
 export interface ApiServiceService extends Struct.CollectionTypeSchema {
   collectionName: 'services';
   info: {
@@ -625,6 +701,7 @@ export interface ApiServiceService extends Struct.CollectionTypeSchema {
     draftAndPublish: true;
   };
   attributes: {
+    cost: Schema.Attribute.Decimal;
     coverImage: Schema.Attribute.Media;
     createdAt: Schema.Attribute.DateTime;
     createdBy: Schema.Attribute.Relation<'oneToOne', 'admin::user'> &
@@ -1242,6 +1319,8 @@ declare module '@strapi/strapi' {
       'api::contact.contact': ApiContactContact;
       'api::home.home': ApiHomeHome;
       'api::notification-setting.notification-setting': ApiNotificationSettingNotificationSetting;
+      'api::payment-method.payment-method': ApiPaymentMethodPaymentMethod;
+      'api::promotion.promotion': ApiPromotionPromotion;
       'api::service.service': ApiServiceService;
       'api::team-member.team-member': ApiTeamMemberTeamMember;
       'api::testimonial.testimonial': ApiTestimonialTestimonial;

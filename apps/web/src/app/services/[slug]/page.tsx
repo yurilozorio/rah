@@ -41,7 +41,6 @@ export default async function ServicePage({ params }: { params: Promise<{ slug: 
   const allServicesResponse = await fetchStrapi<{ id: number; attributes: Service }[]>(
     `/api/services?sort=order:asc&populate=coverImage`
   );
-  
   const services = normalizeCollection(response.data);
   const allServices = normalizeCollection(allServicesResponse.data);
   const service = services[0];

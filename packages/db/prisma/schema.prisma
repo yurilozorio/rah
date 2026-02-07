@@ -71,17 +71,51 @@ model Appointment {
   serviceName        String
   serviceDurationMin Int
   servicePrice       Int
+  serviceCost        Int                @default(0)  // Cost stored at booking time from Strapi
   startAt            DateTime
   endAt              DateTime
   status             AppointmentStatus  @default(BOOKED)
   notes              String?
+  amountReceived     Decimal?           // Actual amount received (can differ from servicePrice)
   createdAt          DateTime           @default(now())
   updatedAt          DateTime           @updatedAt
 
   user       User               @relation(fields: [userId], references: [id])
   events     AppointmentEvent[]
+  payments   Payment[]
 
   @@index([startAt, endAt])
+}
+
+model Payment {
+  id            String   @id @default(cuid())
+  appointmentId String
+  method        String   // 'PIX', 'DINHEIRO', 'CARTAO'
+  amount        Decimal
+  installments  Int      @default(1)
+  createdAt     DateTime @default(now())
+
+  appointment Appointment @relation(fields: [appointmentId], references: [id])
+}
+
+// Date-specific time overrides - override regular schedule hours for specific dates
+model DateTimeOverride {
+  id          String   @id @default(cuid())
+  date        DateTime @db.Date  // The date to override (date only, no time)
+  reason      String?  // Optional reason for the override
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  timeWindows DateTimeOverrideWindow[]
+}
+
+model DateTimeOverrideWindow {
+  id          String @id @default(cuid())
+  overrideId  String
+  startMinute Int    // minutes from midnight (e.g., 540 = 9:00 AM)
+  endMinute   Int    // minutes from midnight (e.g., 1020 = 5:00 PM)
+
+  override DateTimeOverride @relation(fields: [overrideId], references: [id], onDelete: Cascade)
 }
 
 model AppointmentEvent {
@@ -101,10 +135,13 @@ enum Role {
 enum AppointmentStatus {
   BOOKED
   CANCELLED
+  DONE
 }
 
 enum AppointmentEventType {
   CONFIRMATION_SENT
   REMINDER_SENT
   CANCELLED
+  DONE
+  REBOOKED
 }

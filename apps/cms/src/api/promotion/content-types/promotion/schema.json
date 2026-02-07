@@ -1,0 +1,51 @@
+{
+  "kind": "collectionType",
+  "collectionName": "promotions",
+  "info": {
+    "singularName": "promotion",
+    "pluralName": "promotions",
+    "displayName": "Promotion",
+    "description": "Service promotions with time-limited discounts"
+  },
+  "options": {
+    "draftAndPublish": false
+  },
+  "attributes": {
+    "name": {
+      "type": "string",
+      "required": true
+    },
+    "service": {
+      "type": "relation",
+      "relation": "manyToOne",
+      "target": "api::service.service"
+    },
+    "startDate": {
+      "type": "datetime",
+      "required": true
+    },
+    "endDate": {
+      "type": "datetime",
+      "required": true
+    },
+    "promotionalPrice": {
+      "type": "decimal",
+      "required": true
+    },
+    "endBehavior": {
+      "type": "enumeration",
+      "enum": ["revert", "deactivate"],
+      "default": "revert",
+      "required": true
+    },
+    "validPaymentMethods": {
+      "type": "relation",
+      "relation": "manyToMany",
+      "target": "api::payment-method.payment-method"
+    },
+    "active": {
+      "type": "boolean",
+      "default": true
+    }
+  }
+}

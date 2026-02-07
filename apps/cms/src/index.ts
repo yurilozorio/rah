@@ -257,7 +257,11 @@ Te esperamos!`,
         "api::testimonial.testimonial.findOne",
         "api::team-member.team-member.find",
         "api::team-member.team-member.findOne",
-        "api::notification-setting.notification-setting.find"
+        "api::notification-setting.notification-setting.find",
+        "api::promotion.promotion.find",
+        "api::promotion.promotion.findOne",
+        "api::payment-method.payment-method.find",
+        "api::payment-method.payment-method.findOne"
       ];
 
       const permissionService = strapi.documents("plugin::users-permissions.permission");

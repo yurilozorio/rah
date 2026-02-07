@@ -2,6 +2,7 @@ type ContactInfo = {
   whatsapp?: string;
   address?: string;
   footerNote?: string;
+  paymentMethodsText?: string;
 };
 
 export const SiteFooter = ({ siteName, contact }: { siteName?: string; contact?: ContactInfo | null }) => {
@@ -18,6 +19,9 @@ export const SiteFooter = ({ siteName, contact }: { siteName?: string; contact?:
             </span>
           )}
           {contact?.whatsapp ? <span>WhatsApp: {contact.whatsapp}</span> : null}
+          {contact?.paymentMethodsText ? (
+            <span className="text-xs">{contact.paymentMethodsText}</span>
+          ) : null}
         </div>
       </div>
     </footer>

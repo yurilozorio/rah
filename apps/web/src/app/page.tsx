@@ -3,7 +3,7 @@ import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Section } from "@/components/section";
-import { Star, Clock, Sparkles, Phone, Mail, MapPin, Instagram, MessageCircle } from "lucide-react";
+import { Star, Clock, Sparkles, Phone, Mail, MapPin, Instagram, MessageCircle, Tag, Timer, CreditCard } from "lucide-react";
 import {
   fetchStrapi,
   getStrapiAssetBaseUrl,
@@ -13,14 +13,25 @@ import {
   type StrapiMedia
 } from "@/lib/strapi";
 import { formatPrice } from "@/lib/format";
+import { buildActivePromotionsMap } from "@/lib/promotions";
 
 type Service = {
+  id: number;
   name: string;
   slug: string;
   price: number;
   durationMinutes: number;
   description?: string;
   coverImage?: StrapiMedia;
+};
+
+type Promotion = {
+  id: number;
+  service?: { id: number } | null;
+  startDate: string;
+  endDate: string;
+  promotionalPrice: number;
+  validPaymentMethods?: Array<{ name: string }>;
 };
 
 type Testimonial = {
@@ -91,11 +102,17 @@ export default async function Home() {
   const contactResponse = await fetchStrapi<{ id: number; attributes: ContactContent }>(
     "/api/contact"
   );
+  const promotionsResponse = await fetchStrapi<{ id: number; attributes: Promotion }[]>(
+    "/api/promotions?populate=*&filters[active][$eq]=true&filters[endDate][$gte]=" + new Date().toISOString()
+  );
 
   const home = normalizeSingle(homeResponse.data);
   const services = normalizeCollection(servicesResponse.data);
   const testimonials = normalizeCollection(testimonialsResponse.data);
   const contact = normalizeSingle(contactResponse.data);
+  const promotions = normalizeCollection(promotionsResponse.data);
+
+  const activePromotions = buildActivePromotionsMap(promotions);
 
   const heroImageUrl = getImageUrl(home?.heroImage);
   const contactSubtitle = contact?.subtitle ?? home?.contactCta;
@@ -167,24 +184,35 @@ export default async function Home() {
         <div className="grid grid-cols-2 gap-3 sm:gap-8 lg:grid-cols-3">
           {services.map((service) => {
             const coverImage = getImageUrl(service.coverImage);
+            const promo = activePromotions.get(service.id);
             return (
-              <Card key={service.id} className="card-hover group overflow-hidden border-0 bg-gradient-to-br from-white to-secondary/30 shadow-lg !p-0 !gap-0">
-                {coverImage ? (
-                  <div className="relative aspect-[4/3] w-full overflow-hidden rounded-t-xl">
-                    <Image 
-                      src={coverImage} 
-                      alt={service.name} 
-                      fill 
-                      className="object-cover transition-transform duration-500 group-hover:scale-105" 
-                      unoptimized 
-                    />
-                    <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent" />
-                  </div>
-                ) : (
-                  <div className="flex aspect-[4/3] items-center justify-center bg-gradient-to-br from-secondary to-accent/50 rounded-t-xl">
-                    <Sparkles className="h-10 w-10 sm:h-16 sm:w-16 text-primary/40" />
-                  </div>
-                )}
+              <Card key={service.id} className={`card-hover group overflow-hidden border-0 bg-gradient-to-br from-white to-secondary/30 shadow-lg !p-0 !gap-0 ${
+                promo ? "ring-2 ring-red-300 shadow-[0_0_20px_rgba(239,68,68,0.15)]" : ""
+              }`}>
+                <div className="relative aspect-[4/3] w-full overflow-hidden rounded-t-xl">
+                  {coverImage ? (
+                    <>
+                      <Image 
+                        src={coverImage} 
+                        alt={service.name} 
+                        fill 
+                        className="object-cover transition-transform duration-500 group-hover:scale-105" 
+                        unoptimized 
+                      />
+                      <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent" />
+                    </>
+                  ) : (
+                    <div className="flex h-full items-center justify-center bg-gradient-to-br from-secondary to-accent/50">
+                      <Sparkles className="h-10 w-10 sm:h-16 sm:w-16 text-primary/40" />
+                    </div>
+                  )}
+                  {promo && (
+                    <div className="absolute top-2 left-2 z-10 flex items-center gap-1 rounded-full bg-gradient-to-r from-red-500 to-orange-500 px-2.5 py-1 text-[10px] sm:text-xs font-bold text-white shadow-lg">
+                      <Tag className="h-3 w-3" />
+                      Promoção
+                    </div>
+                  )}
+                </div>
                 <CardContent className="flex flex-col gap-2 sm:gap-4 p-3 sm:p-6 !px-3 sm:!px-6">
                   <div>
                     <h3 className="text-sm sm:text-xl font-semibold font-display text-foreground line-clamp-2">{service.name}</h3>
@@ -193,8 +221,33 @@ export default async function Home() {
                         <Clock className="h-3 w-3 sm:h-4 sm:w-4" />
                         {service.durationMinutes} min
                       </span>
-                      <span className="font-semibold text-primary">{formatPrice(service.price)}</span>
+                      {promo ? (
+                        <span className="text-right">
+                          <span className="block text-[10px] sm:text-xs line-through">{formatPrice(service.price)}</span>
+                          <span className="font-bold text-red-600 text-xs sm:text-base">{formatPrice(promo.promotionalPrice)}</span>
+                        </span>
+                      ) : (
+                        <span className="font-semibold text-primary">{formatPrice(service.price)}</span>
+                      )}
                     </div>
+                    {promo && (
+                      <div className="mt-2 rounded-md bg-gradient-to-r from-red-50 to-orange-50 p-1.5 sm:p-2 border border-red-100">
+                        <div className="flex items-center gap-1 text-[10px] sm:text-xs text-red-600 font-semibold">
+                          <Timer className="h-3 w-3 shrink-0" />
+                          <span>
+                            Até {new Date(promo.endDate).toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit", timeZone: "America/Sao_Paulo" })}
+                            {" às "}
+                            {new Date(promo.endDate).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit", timeZone: "America/Sao_Paulo" })}
+                          </span>
+                        </div>
+                        {promo.validPaymentMethods && promo.validPaymentMethods.length > 0 && (
+                          <div className="flex items-center gap-1 mt-0.5 text-[10px] sm:text-xs text-muted-foreground">
+                            <CreditCard className="h-3 w-3 shrink-0" />
+                            <span>{promo.validPaymentMethods.map(pm => pm.name).join(", ")}</span>
+                          </div>
+                        )}
+                      </div>
+                    )}
                   </div>
                   {service.description ? (
                     <p className="line-clamp-2 text-xs sm:text-sm text-muted-foreground hidden sm:block whitespace-pre-line">{service.description}</p>

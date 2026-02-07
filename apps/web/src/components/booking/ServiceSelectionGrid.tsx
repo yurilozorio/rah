@@ -1,7 +1,7 @@
 "use client";
 
 import Image from "next/image";
-import { Check, Clock, Sparkles } from "lucide-react";
+import { Check, Clock, Sparkles, Tag, Timer, CreditCard } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 
@@ -11,6 +11,12 @@ type Service = {
   price: number;
   durationMinutes: number;
   coverImage?: string | null;
+  promotion?: {
+    promotionalPrice: number;
+    endDate: string;
+    validPaymentMethods?: string[];
+  } | null;
+  originalPrice?: number;
 };
 
 type ServiceSelectionGridProps = {
@@ -60,7 +66,7 @@ export function ServiceSelectionGrid({
               <Card 
                 className={`selection-card h-full transition-all duration-200 !p-0 !gap-0 ${
                   isSelected ? "selected" : ""
-                }`}
+                } ${service.promotion ? "ring-2 ring-red-300 shadow-[0_0_15px_rgba(239,68,68,0.15)]" : ""}`}
               >
                 {/* Image */}
                 <div className="relative aspect-[4/3] w-full overflow-hidden rounded-t-xl">
@@ -93,6 +99,14 @@ export function ServiceSelectionGrid({
                   )}
                 </div>
                 
+                {/* Promotion badge */}
+                {service.promotion && (
+                  <div className="absolute top-2 left-2 z-10 flex items-center gap-1 rounded-full bg-gradient-to-r from-red-500 to-orange-500 px-2.5 py-1 text-[10px] sm:text-xs font-bold text-white shadow-lg">
+                    <Tag className="h-3 w-3" />
+                    Promoção
+                  </div>
+                )}
+
                 {/* Content */}
                 <CardContent className="p-2 sm:p-4">
                   <h3 className="text-sm sm:text-base font-semibold text-foreground line-clamp-2">{service.name}</h3>
@@ -101,8 +115,37 @@ export function ServiceSelectionGrid({
                       <Clock className="h-3 w-3 sm:h-4 sm:w-4" />
                       <span>{service.durationMinutes} min</span>
                     </div>
-                    <span className="text-xs sm:text-base font-semibold text-primary">{formatPrice(service.price)}</span>
+                    {service.promotion ? (
+                      <div className="text-right">
+                        <span className="block text-[10px] sm:text-xs text-muted-foreground line-through">
+                          {formatPrice(service.originalPrice ?? service.promotion.promotionalPrice)}
+                        </span>
+                        <span className="text-xs sm:text-base font-bold text-red-600">
+                          {formatPrice(service.price)}
+                        </span>
+                      </div>
+                    ) : (
+                      <span className="text-xs sm:text-base font-semibold text-primary">{formatPrice(service.price)}</span>
+                    )}
                   </div>
+                  {service.promotion && (
+                    <div className="mt-2 rounded-md bg-gradient-to-r from-red-50 to-orange-50 p-1.5 sm:p-2 border border-red-100">
+                      <div className="flex items-center gap-1 text-[10px] sm:text-xs text-red-600 font-semibold">
+                        <Timer className="h-3 w-3 shrink-0" />
+                        <span>
+                          Até {new Date(service.promotion.endDate).toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit", timeZone: "America/Sao_Paulo" })}
+                          {" às "}
+                          {new Date(service.promotion.endDate).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit", timeZone: "America/Sao_Paulo" })}
+                        </span>
+                      </div>
+                      {service.promotion.validPaymentMethods && service.promotion.validPaymentMethods.length > 0 && (
+                        <div className="flex items-center gap-1 mt-0.5 text-[10px] sm:text-xs text-muted-foreground">
+                          <CreditCard className="h-3 w-3 shrink-0" />
+                          <span>{service.promotion.validPaymentMethods.join(", ")}</span>
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </CardContent>
               </Card>
             </button>

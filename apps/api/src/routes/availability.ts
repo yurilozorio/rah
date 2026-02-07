@@ -75,6 +75,49 @@ async function isDateBlocked(dateStr: string): Promise<boolean> {
   return !!blocked;
 }
 
+type TimeWindowData = { startMinute: number; endMinute: number };
+
+// Helper to get time overrides for a specific date
+async function getTimeOverrideForDate(dateStr: string): Promise<TimeWindowData[] | null> {
+  const date = new Date(dateStr);
+  const override = await prisma.dateTimeOverride.findFirst({
+    where: { date },
+    include: { timeWindows: true }
+  });
+  if (!override || override.timeWindows.length === 0) return null;
+  return override.timeWindows.map((tw) => ({
+    startMinute: tw.startMinute,
+    endMinute: tw.endMinute
+  }));
+}
+
+// Helper to get all time overrides in a range
+async function getTimeOverridesInRange(from: string, to: string): Promise<Map<string, TimeWindowData[]>> {
+  const fromDate = new Date(from);
+  const toDate = new Date(to);
+
+  const overrides = await prisma.dateTimeOverride.findMany({
+    where: {
+      date: {
+        gte: fromDate,
+        lte: toDate
+      }
+    },
+    include: { timeWindows: true }
+  });
+
+  const result = new Map<string, TimeWindowData[]>();
+  for (const o of overrides) {
+    result.set(o.date.toISOString().slice(0, 10),
+      o.timeWindows.map((tw) => ({
+        startMinute: tw.startMinute,
+        endMinute: tw.endMinute
+      }))
+    );
+  }
+  return result;
+}
+
 // Helper to get all blocked dates in a range with reasons
 async function getBlockedDatesInRange(from: string, to: string): Promise<Map<string, string | null>> {
   const fromDate = new Date(from);
@@ -123,12 +166,15 @@ export const registerAvailabilityRoutes = (app: FastifyInstance) => {
 
     const { schedule, slotIntervalMinutes } = await getGlobalSchedule();
 
+    // Check for time override for this specific date
+    const timeOverride = await getTimeOverrideForDate(query.date);
+
     const dayStartUtc = fromZonedTime(`${query.date}T00:00:00`, config.TIMEZONE);
     const dayEndUtc = addDays(dayStartUtc, 1);
 
     const existingAppointments = await prisma.appointment.findMany({
       where: {
-        status: "BOOKED",
+        status: { in: ["BOOKED", "DONE"] },
         startAt: { lt: dayEndUtc },
         endAt: { gt: dayStartUtc }
       },
@@ -140,7 +186,23 @@ export const registerAvailabilityRoutes = (app: FastifyInstance) => {
 
     let slots;
 
-    if (schedule) {
+    if (timeOverride) {
+      // Use override hours instead of regular schedule
+      const overrideSchedule: WeekSchedule = Array.from({ length: 7 }, (_, weekday) => ({
+        weekday,
+        isAvailable: true,
+        timeWindows: timeOverride
+      }));
+
+      slots = buildSlotsFromSchedule({
+        date: query.date,
+        timezone: config.TIMEZONE,
+        schedule: overrideSchedule,
+        durationMinutes: service.durationMinutes,
+        slotIntervalMinutes,
+        existing: existingAppointments
+      });
+    } else if (schedule) {
       // Use new Calendly-style schedule
       slots = buildSlotsFromSchedule({
         date: query.date,
@@ -215,6 +277,9 @@ export const registerAvailabilityRoutes = (app: FastifyInstance) => {
     // Get blocked dates in range
     const blockedDates = await getBlockedDatesInRange(query.from, query.to);
 
+    // Get time overrides in range
+    const timeOverrides = await getTimeOverridesInRange(query.from, query.to);
+
     // Generate all dates in range
     const fromDate = new Date(`${query.from}T00:00:00`);
     const toDate = new Date(`${query.to}T00:00:00`);
@@ -232,7 +297,7 @@ export const registerAvailabilityRoutes = (app: FastifyInstance) => {
 
     const existingAppointments = await prisma.appointment.findMany({
       where: {
-        status: "BOOKED",
+        status: { in: ["BOOKED", "DONE"] },
         startAt: { lt: rangeEndUtc },
         endAt: { gt: rangeStartUtc }
       },
@@ -272,7 +337,26 @@ export const registerAvailabilityRoutes = (app: FastifyInstance) => {
 
       let slots;
 
-      if (schedule) {
+      // Check for time override on this specific date
+      const dayTimeOverride = timeOverrides.get(dateKey);
+
+      if (dayTimeOverride) {
+        // Use override hours instead of regular schedule
+        const overrideSchedule: WeekSchedule = Array.from({ length: 7 }, (_, weekday) => ({
+          weekday,
+          isAvailable: true,
+          timeWindows: dayTimeOverride
+        }));
+
+        slots = buildSlotsFromSchedule({
+          date: dateKey,
+          timezone: config.TIMEZONE,
+          schedule: overrideSchedule,
+          durationMinutes,
+          slotIntervalMinutes,
+          existing: dayAppointments
+        });
+      } else if (schedule) {
         slots = buildSlotsFromSchedule({
           date: dateKey,
           timezone: config.TIMEZONE,

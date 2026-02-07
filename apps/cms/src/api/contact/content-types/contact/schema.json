@@ -41,6 +41,9 @@
     },
     "businessHours": {
       "type": "text"
+    },
+    "paymentMethodsText": {
+      "type": "string"
     }
   }
 }

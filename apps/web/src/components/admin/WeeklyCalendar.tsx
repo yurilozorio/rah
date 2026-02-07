@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState, useRef } from "react";
-import { ChevronLeft, ChevronRight, Plus, Trash2, GripVertical } from "lucide-react";
+import { ChevronLeft, ChevronRight, Plus, Trash2, GripVertical, CheckCircle2, XCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
@@ -12,7 +12,7 @@ export type Appointment = {
   serviceDurationMin?: number;
   startAt: string;
   endAt?: string;
-  status: "BOOKED" | "CANCELLED";
+  status: "BOOKED" | "CANCELLED" | "DONE";
   notes?: string;
   user: { name: string; phone: string };
 };
@@ -29,6 +29,8 @@ type WeeklyCalendarProps = {
   onAppointmentDrop?: (appointmentId: string, newStartAt: Date, newEndAt: Date) => void;
   onAppointmentResize?: (appointmentId: string, newEndAt: Date) => void;
   onAppointmentDelete?: (appointmentId: string) => void;
+  onAppointmentMarkDone?: (appointmentId: string) => void;
+  onAppointmentCancel?: (appointmentId: string) => void;
   onSlotClick?: (date: Date) => void;
 };
 
@@ -81,6 +83,8 @@ export function WeeklyCalendar({
   onAppointmentDrop,
   onAppointmentResize,
   onAppointmentDelete,
+  onAppointmentMarkDone,
+  onAppointmentCancel,
   onSlotClick,
 }: WeeklyCalendarProps) {
   const weekDates = useMemo(() => getWeekDates(currentWeekStart), [currentWeekStart]);
@@ -149,7 +153,7 @@ export function WeeklyCalendar({
 
   // Drag handlers
   const handleDragStart = (e: React.DragEvent, appointment: Appointment) => {
-    if (appointment.status === "CANCELLED") return;
+    if (appointment.status === "CANCELLED" || appointment.status === "DONE") return;
     
     e.dataTransfer.effectAllowed = "move";
     e.dataTransfer.setData("text/plain", appointment.id);
@@ -211,7 +215,7 @@ export function WeeklyCalendar({
     e.stopPropagation();
     e.preventDefault();
     
-    if (appointment.status === "CANCELLED") return;
+    if (appointment.status === "CANCELLED" || appointment.status === "DONE") return;
 
     let durationMinutes = 60;
     if (appointment.endAt) {
@@ -391,12 +395,13 @@ export function WeeklyCalendar({
                     )}
 
                     {/* Appointments */}
-                    {dayAppointments.map((appointment) => {
+                    {dayAppointments.filter((a) => a.status !== "CANCELLED").map((appointment) => {
                       const style = getAppointmentStyle(
                         appointment,
                         resizingAppointment?.id === appointment.id
                       );
-                      const isCancelled = appointment.status === "CANCELLED";
+                      const isDone = appointment.status === "DONE";
+                      const isInactive = isDone;
                       const isDragging = draggedAppointment?.id === appointment.id;
                       const isResizing = resizingAppointment?.id === appointment.id;
                       
@@ -404,7 +409,7 @@ export function WeeklyCalendar({
                         <div
                           key={appointment.id}
                           data-appointment={appointment.id}
-                          draggable={!isCancelled}
+                          draggable={!isInactive}
                           onDragStart={(e) => handleDragStart(e, appointment)}
                           onDragEnd={handleDragEnd}
                           onClick={(e) => {
@@ -412,10 +417,10 @@ export function WeeklyCalendar({
                             onAppointmentClick?.(appointment);
                           }}
                           className={cn(
-                            "group absolute left-1 right-1 overflow-hidden rounded-md border px-2 py-1 text-xs shadow-sm transition-all",
-                            isCancelled
-                              ? "cursor-not-allowed border-muted bg-muted text-muted-foreground line-through"
-                              : "cursor-grab border-primary/30 bg-primary/20 text-foreground hover:shadow-md active:cursor-grabbing",
+                            "group absolute left-1 right-1 rounded-md border px-2 py-1 text-xs shadow-sm transition-all",
+                            isDone
+                              ? "cursor-pointer border-green-300 bg-green-100 text-green-900 dark:border-green-700 dark:bg-green-900/30 dark:text-green-200 overflow-hidden"
+                              : "cursor-grab border-primary/30 bg-primary/20 text-foreground hover:shadow-md active:cursor-grabbing overflow-hidden hover:overflow-visible",
                             isDragging && "opacity-50",
                             isResizing && "ring-2 ring-primary"
                           )}
@@ -423,7 +428,7 @@ export function WeeklyCalendar({
                           title={`${appointment.serviceName}\n${appointment.user.name}\n${appointment.user.phone}`}
                         >
                           {/* Drag handle indicator */}
-                          {!isCancelled && (
+                          {!isInactive && (
                             <div className="absolute left-0 top-0 bottom-0 flex w-4 items-center justify-center opacity-0 transition-opacity group-hover:opacity-60">
                               <GripVertical className="size-3" />
                             </div>
@@ -440,22 +445,57 @@ export function WeeklyCalendar({
                             {appointment.user.name}
                           </div>
 
-                          {/* Delete button */}
-                          {!isCancelled && onAppointmentDelete && (
-                            <button
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                onAppointmentDelete(appointment.id);
-                              }}
-                              className="absolute right-1 top-1 rounded p-0.5 opacity-0 transition-opacity hover:bg-destructive/20 group-hover:opacity-100"
-                              title="Excluir agendamento"
-                            >
-                              <Trash2 className="size-3 text-destructive" />
-                            </button>
+                          {/* Action buttons — pop out on hover (left for last 2 cols, right otherwise) */}
+                          {!isInactive && (
+                            <div className={cn(
+                              "absolute top-1/2 -translate-y-1/2 opacity-0 scale-90 transition-all duration-150 group-hover:opacity-100 group-hover:scale-100 z-30",
+                              dayIndex >= 5
+                                ? "left-0 -translate-x-[calc(100%-6px)] pr-2 origin-right"
+                                : "right-0 translate-x-[calc(100%-6px)] pl-2 origin-left"
+                            )}>
+                              <div className="flex flex-col items-center gap-0.5 rounded-md bg-white border shadow-lg p-0.5">
+                                {onAppointmentMarkDone && (
+                                  <button
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      onAppointmentMarkDone(appointment.id);
+                                    }}
+                                    className="rounded p-1 hover:bg-green-100 transition-colors"
+                                    title="Marcar como concluído"
+                                  >
+                                    <CheckCircle2 className="size-3.5 text-green-600" />
+                                  </button>
+                                )}
+                                {onAppointmentCancel && (
+                                  <button
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      onAppointmentCancel(appointment.id);
+                                    }}
+                                    className="rounded p-1 hover:bg-orange-100 transition-colors"
+                                    title="Cancelar agendamento"
+                                  >
+                                    <XCircle className="size-3.5 text-orange-500" />
+                                  </button>
+                                )}
+                                {onAppointmentDelete && (
+                                  <button
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      onAppointmentDelete(appointment.id);
+                                    }}
+                                    className="rounded p-1 hover:bg-red-100 transition-colors"
+                                    title="Excluir agendamento"
+                                  >
+                                    <Trash2 className="size-3.5 text-destructive" />
+                                  </button>
+                                )}
+                              </div>
+                            </div>
                           )}
 
                           {/* Resize handle */}
-                          {!isCancelled && onAppointmentResize && (
+                          {!isInactive && onAppointmentResize && (
                             <div
                               className="absolute bottom-0 left-0 right-0 h-2 cursor-ns-resize opacity-0 transition-opacity group-hover:opacity-100"
                               onMouseDown={(e) => handleResizeStart(e, appointment)}
@@ -463,6 +503,60 @@ export function WeeklyCalendar({
                               <div className="mx-auto h-0.5 w-8 rounded-full bg-foreground/40" />
                             </div>
                           )}
+                        </div>
+                      );
+                    })}
+
+                    {/* Cancelled appointments — small icon in top-right corner */}
+                    {dayAppointments.filter((a) => a.status === "CANCELLED").map((appointment) => {
+                      const start = new Date(appointment.startAt);
+                      const startMinutes = start.getHours() * 60 + start.getMinutes();
+                      const topOffset = ((startMinutes - startHour * 60) / 60) * HOUR_HEIGHT;
+
+                      return (
+                        <div
+                          key={appointment.id}
+                          data-appointment={appointment.id}
+                          className="group/cancelled absolute right-1 z-20"
+                          style={{ top: `${topOffset}px` }}
+                        >
+                          {/* Small icon */}
+                          <div
+                            className="flex size-5 items-center justify-center rounded-full bg-muted border border-muted-foreground/20 cursor-pointer shadow-sm"
+                            title={`Cancelado: ${appointment.serviceName} - ${appointment.user.name}`}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              onAppointmentClick?.(appointment);
+                            }}
+                          >
+                            <XCircle className="size-3 text-muted-foreground" />
+                          </div>
+
+                          {/* Expanded card on hover */}
+                          <div className="pointer-events-none absolute right-0 top-0 z-40 opacity-0 scale-90 origin-top-right transition-all duration-150 group-hover/cancelled:pointer-events-auto group-hover/cancelled:opacity-100 group-hover/cancelled:scale-100">
+                            <div
+                              className="w-44 rounded-md border border-muted bg-muted/95 px-2.5 py-1.5 text-xs text-muted-foreground shadow-lg backdrop-blur-sm cursor-pointer"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                onAppointmentClick?.(appointment);
+                              }}
+                            >
+                              <div className="font-medium line-through truncate">
+                                {new Date(appointment.startAt).toLocaleTimeString("pt-BR", {
+                                  hour: "2-digit",
+                                  minute: "2-digit",
+                                })}{" "}
+                                - {appointment.serviceName}
+                              </div>
+                              <div className="text-[10px] opacity-80 truncate">
+                                {appointment.user.name}
+                              </div>
+                              <div className="mt-1 flex items-center gap-1 text-[10px] text-red-400 font-medium">
+                                <XCircle className="size-2.5" />
+                                Cancelado
+                              </div>
+                            </div>
+                          </div>
                         </div>
                       );
                     })}
@@ -486,6 +580,10 @@ export function WeeklyCalendar({
         <div className="flex items-center gap-1">
           <div className="size-3 rounded border border-primary/20 bg-primary/20" />
           <span>Confirmado</span>
+        </div>
+        <div className="flex items-center gap-1">
+          <div className="size-3 rounded border border-green-300 bg-green-100" />
+          <span>Concluído</span>
         </div>
         <div className="flex items-center gap-1">
           <div className="size-3 rounded border border-muted bg-muted" />

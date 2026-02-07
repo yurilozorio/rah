@@ -54,7 +54,6 @@ export default async function AboutPage() {
   const proceduresResponse = await fetchStrapi<{ id: number; attributes: ProcedureService }[]>(
     "/api/services?sort=order:asc&populate=*"
   );
-
   const about = normalizeSingle(aboutResponse.data);
   const team = normalizeCollection(teamResponse.data);
   const procedures = normalizeCollection(proceduresResponse.data);

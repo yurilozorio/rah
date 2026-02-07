@@ -30,6 +30,12 @@
     },
     "calendarCaption": {
       "type": "string"
+    },
+    "completionMessageTemplate": {
+      "type": "text"
+    },
+    "cancellationMessageTemplate": {
+      "type": "text"
     }
   }
 }

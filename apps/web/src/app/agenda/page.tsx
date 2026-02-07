@@ -5,6 +5,7 @@ import { useSearchParams } from "next/navigation";
 import { Card, CardContent } from "@/components/ui/card";
 import { apiFetch } from "@/lib/api";
 import { formatPrice } from "@/lib/format";
+import { buildActivePromotionsMap } from "@/lib/promotions";
 import {
   BookingCalendar,
   TimeSlotsPanel,
@@ -20,6 +21,11 @@ type Service = {
   price: number;
   durationMinutes: number;
   coverImage?: string | null;
+  promotion?: {
+    promotionalPrice: number;
+    endDate: string;
+    validPaymentMethods?: string[];
+  } | null;
 };
 
 type Slot = {
@@ -45,6 +51,50 @@ const getStrapiMediaUrl = (url?: string | null) => {
   return base ? `${base}${url}` : url; // Use relative URL in production
 };
 
+type StrapiPromotion = {
+  id: number;
+  service?: { id: number } | null;
+  startDate: string;
+  endDate: string;
+  promotionalPrice: number;
+  endBehavior: string;
+  validPaymentMethods?: Array<{ name: string }>;
+};
+
+const fetchPromotions = async (): Promise<StrapiPromotion[]> => {
+  const strapiBaseUrl = getStrapiBaseUrl();
+  // Strapi 5 returns published content by default -- no publishedAt filter needed
+  const apiPath = "/api/promotions?populate=*&filters[active][$eq]=true";
+  const url = strapiBaseUrl ? `${strapiBaseUrl}${apiPath}` : `/cms${apiPath}`;
+  try {
+    const response = await fetch(url);
+    if (!response.ok) {
+      console.warn("Failed to fetch promotions:", response.status);
+      return [];
+    }
+    const json = await response.json();
+    return (json?.data ?? []).map((item: any) => {
+      const attrs = item?.attributes ?? item;
+      // Strapi 5: relation is flat object; Strapi 4: relation is { data: { id, attributes } }
+      const serviceData = attrs?.service?.data ?? attrs?.service;
+      return {
+        id: item.id ?? attrs.id,
+        service: serviceData ? { id: serviceData.id ?? serviceData?.data?.id } : null,
+        startDate: attrs.startDate,
+        endDate: attrs.endDate,
+        promotionalPrice: Number(attrs.promotionalPrice ?? 0),
+        endBehavior: attrs.endBehavior ?? "revert",
+        validPaymentMethods: (attrs.validPaymentMethods?.data ?? attrs.validPaymentMethods ?? []).map(
+          (pm: any) => ({ name: pm.name ?? pm?.attributes?.name ?? "" })
+        ),
+      };
+    });
+  } catch (error) {
+    console.warn("Error fetching promotions:", error);
+    return [];
+  }
+};
+
 const fetchServices = async (): Promise<Service[]> => {
   const strapiBaseUrl = getStrapiBaseUrl();
   const apiPath = "/api/services?sort=order:asc&populate=coverImage";
@@ -52,7 +102,8 @@ const fetchServices = async (): Promise<Service[]> => {
   const url = strapiBaseUrl ? `${strapiBaseUrl}${apiPath}` : `/cms${apiPath}`;
   const response = await fetch(url);
   const json = await response.json();
-  return (json?.data ?? []).map((item: any) => {
+
+  const services: Service[] = (json?.data ?? []).map((item: any) => {
     const normalized = item?.attributes
       ? { id: item.id, ...item.attributes }
       : item;
@@ -65,8 +116,29 @@ const fetchServices = async (): Promise<Service[]> => {
       price: Number(normalized.price ?? 0),
       durationMinutes: Number(normalized.durationMinutes ?? 0),
       coverImage: getStrapiMediaUrl(coverImageUrl),
+      promotion: null,
     };
   });
+
+  // Fetch active promotions and merge them with services
+  const promotions = await fetchPromotions();
+  const activePromotions = buildActivePromotionsMap(promotions);
+
+  for (const service of services) {
+    const promo = activePromotions.get(service.id);
+    if (!promo) continue;
+    const originalPrice = service.price;
+    service.promotion = {
+      promotionalPrice: promo.promotionalPrice,
+      endDate: promo.endDate,
+      validPaymentMethods: promo.validPaymentMethods?.map((pm) => pm.name).filter(Boolean),
+    };
+    // Store original price for strikethrough display, then auto-apply promo price
+    (service as any).originalPrice = originalPrice;
+    service.price = promo.promotionalPrice;
+  }
+
+  return services;
 };
 
 const toDateKey = (date: Date) => date.toISOString().slice(0, 10);

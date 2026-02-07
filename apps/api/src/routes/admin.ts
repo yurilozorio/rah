@@ -1,15 +1,22 @@
 import { FastifyInstance } from "fastify";
 import { z } from "zod";
 import { addMinutes } from "date-fns";
+import { formatInTimeZone } from "date-fns-tz";
+import { Prisma } from "@rah/db";
 import { prisma } from "../lib/db.js";
+import { config } from "../lib/config.js";
 import {
   addLoyaltyPoints,
   setLoyaltyPoints,
   subtractLoyaltyPoints,
   fetchServiceById,
+  fetchActivePromotionPrice,
+  fetchAllServices,
+  fetchNotificationSettings,
   findClientByPhone,
   createClient
 } from "../lib/strapi.js";
+import { queueWhatsAppMessage } from "../lib/whatsapp.js";
 
 // Legacy schema for backwards compatibility
 const availabilitySchema = z.object({
@@ -81,7 +88,8 @@ export const registerAdminRoutes = (app: FastifyInstance) => {
       where,
       orderBy: { startAt: "asc" },
       include: {
-        user: true
+        user: true,
+        payments: true
       }
     });
 
@@ -91,7 +99,7 @@ export const registerAdminRoutes = (app: FastifyInstance) => {
   app.get("/admin/calendar", { preHandler: app.requireAdmin }, async () => {
     const appointments = await prisma.appointment.findMany({
       orderBy: { startAt: "asc" },
-      include: { user: true }
+      include: { user: true, payments: true }
     });
 
     return { appointments };
@@ -441,6 +449,10 @@ export const registerAdminRoutes = (app: FastifyInstance) => {
       });
     }
 
+    // Check for active promotion price
+    const promoPrice = await fetchActivePromotionPrice(data.serviceId);
+    const effectivePrice = promoPrice ?? service.price;
+
     // Create appointment
     const appointment = await prisma.appointment.create({
       data: {
@@ -448,7 +460,8 @@ export const registerAdminRoutes = (app: FastifyInstance) => {
         serviceId: data.serviceId,
         serviceName: service.name,
         serviceDurationMin: durationMinutes,
-        servicePrice: service.price,
+        servicePrice: effectivePrice,
+        serviceCost: service.cost,
         startAt,
         endAt,
         notes: data.notes ?? null
@@ -567,5 +580,539 @@ export const registerAdminRoutes = (app: FastifyInstance) => {
     });
 
     return { ok: true };
+  });
+
+  // ============================================
+  // Mark appointment as DONE
+  // ============================================
+
+  const markDoneSchema = z.object({
+    amountReceived: z.number().min(0),
+    payments: z.array(
+      z.object({
+        method: z.string().min(1),
+        amount: z.number().min(0),
+        installments: z.number().int().min(1).default(1)
+      })
+    ).min(1)
+  });
+
+  app.patch("/admin/appointments/:id/done", { preHandler: app.requireAdmin }, async (request, reply) => {
+    const { id } = request.params as { id: string };
+    const data = markDoneSchema.parse(request.body);
+
+    const appointment = await prisma.appointment.findUnique({
+      where: { id },
+      include: { user: true }
+    });
+
+    if (!appointment) {
+      return reply.code(404).send({ message: "Appointment not found" });
+    }
+
+    if (appointment.status === "CANCELLED") {
+      return reply.code(400).send({ message: "Cannot mark a cancelled appointment as done" });
+    }
+
+    if (appointment.status === "DONE") {
+      return reply.code(400).send({ message: "Appointment is already marked as done" });
+    }
+
+    // Validate that payment amounts sum to amountReceived
+    const paymentTotal = data.payments.reduce((sum, p) => sum + p.amount, 0);
+    if (Math.abs(paymentTotal - data.amountReceived) > 0.01) {
+      return reply.code(400).send({
+        message: "Sum of payment amounts must equal amountReceived"
+      });
+    }
+
+    // Update appointment and create payment records in a transaction
+    const updated = await prisma.$transaction(async (tx) => {
+      const apt = await tx.appointment.update({
+        where: { id },
+        data: {
+          status: "DONE",
+          amountReceived: new Prisma.Decimal(data.amountReceived)
+        },
+        include: { user: true }
+      });
+
+      // Create payment records
+      await tx.payment.createMany({
+        data: data.payments.map((p) => ({
+          appointmentId: id,
+          method: p.method,
+          amount: new Prisma.Decimal(p.amount),
+          installments: p.installments
+        }))
+      });
+
+      // Log the event
+      await tx.appointmentEvent.create({
+        data: {
+          appointmentId: id,
+          type: "DONE"
+        }
+      });
+
+      return apt;
+    });
+
+    // Send WhatsApp completion message
+    try {
+      const notificationSettings = await fetchNotificationSettings();
+      if (notificationSettings?.completionMessageTemplate) {
+        const dateLabel = formatInTimeZone(appointment.startAt, config.TIMEZONE, "dd/MM/yyyy");
+        const timeLabel = formatInTimeZone(appointment.startAt, config.TIMEZONE, "HH:mm");
+
+        const message = notificationSettings.completionMessageTemplate
+          .replace(/\{\{name\}\}/g, appointment.user.name)
+          .replace(/\{\{services\}\}/g, appointment.serviceName)
+          .replace(/\{\{date\}\}/g, dateLabel)
+          .replace(/\{\{time\}\}/g, timeLabel);
+
+        await queueWhatsAppMessage({
+          phone: appointment.user.phone,
+          message,
+          appointmentId: appointment.id,
+          eventType: "DONE"
+        });
+      }
+    } catch (error) {
+      request.log.error({ error }, "Failed to queue completion WhatsApp message");
+    }
+
+    return { appointment: updated };
+  });
+
+  // ============================================
+  // Mark appointment as CANCELLED (distinct from DELETE)
+  // ============================================
+
+  app.patch("/admin/appointments/:id/cancel", { preHandler: app.requireAdmin }, async (request, reply) => {
+    const { id } = request.params as { id: string };
+
+    const appointment = await prisma.appointment.findUnique({
+      where: { id },
+      include: { user: true }
+    });
+
+    if (!appointment) {
+      return reply.code(404).send({ message: "Appointment not found" });
+    }
+
+    if (appointment.status === "CANCELLED") {
+      return reply.code(400).send({ message: "Appointment is already cancelled" });
+    }
+
+    if (appointment.status === "DONE") {
+      return reply.code(400).send({ message: "Cannot cancel a completed appointment" });
+    }
+
+    const updated = await prisma.$transaction(async (tx) => {
+      const apt = await tx.appointment.update({
+        where: { id },
+        data: { status: "CANCELLED" },
+        include: { user: true }
+      });
+
+      await tx.appointmentEvent.create({
+        data: {
+          appointmentId: id,
+          type: "CANCELLED"
+        }
+      });
+
+      return apt;
+    });
+
+    // Deduct loyalty points
+    if (appointment.user.strapiClientId) {
+      try {
+        await subtractLoyaltyPoints(appointment.user.strapiClientId, 1);
+      } catch (error) {
+        request.log.error({ error }, "Failed to deduct loyalty points in Strapi");
+      }
+    }
+
+    // Send WhatsApp cancellation message
+    try {
+      const notificationSettings = await fetchNotificationSettings();
+      if (notificationSettings?.cancellationMessageTemplate) {
+        const dateLabel = formatInTimeZone(appointment.startAt, config.TIMEZONE, "dd/MM/yyyy");
+        const timeLabel = formatInTimeZone(appointment.startAt, config.TIMEZONE, "HH:mm");
+
+        const message = notificationSettings.cancellationMessageTemplate
+          .replace(/\{\{name\}\}/g, appointment.user.name)
+          .replace(/\{\{services\}\}/g, appointment.serviceName)
+          .replace(/\{\{date\}\}/g, dateLabel)
+          .replace(/\{\{time\}\}/g, timeLabel);
+
+        await queueWhatsAppMessage({
+          phone: appointment.user.phone,
+          message,
+          appointmentId: appointment.id,
+          eventType: "CANCELLED"
+        });
+      }
+    } catch (error) {
+      request.log.error({ error }, "Failed to queue cancellation WhatsApp message");
+    }
+
+    return { appointment: updated };
+  });
+
+  // ============================================
+  // Revert appointment to BOOKED
+  // ============================================
+
+  app.patch("/admin/appointments/:id/revert", { preHandler: app.requireAdmin }, async (request, reply) => {
+    const { id } = request.params as { id: string };
+
+    const appointment = await prisma.appointment.findUnique({
+      where: { id },
+      include: { user: true, payments: true }
+    });
+
+    if (!appointment) {
+      return reply.code(404).send({ message: "Appointment not found" });
+    }
+
+    if (appointment.status === "BOOKED") {
+      return reply.code(400).send({ message: "Appointment is already active" });
+    }
+
+    const wasDone = appointment.status === "DONE";
+
+    const updated = await prisma.$transaction(async (tx) => {
+      // If reverting from DONE, delete payment records and clear amount
+      if (wasDone) {
+        await tx.payment.deleteMany({ where: { appointmentId: id } });
+      }
+
+      const apt = await tx.appointment.update({
+        where: { id },
+        data: {
+          status: "BOOKED",
+          amountReceived: null
+        },
+        include: { user: true, payments: true }
+      });
+
+      await tx.appointmentEvent.create({
+        data: {
+          appointmentId: id,
+          type: "REBOOKED"
+        }
+      });
+
+      return apt;
+    });
+
+    // If reverting from CANCELLED, re-add loyalty point
+    if (!wasDone && appointment.user.strapiClientId) {
+      try {
+        await addLoyaltyPoints(appointment.user.strapiClientId, 1);
+      } catch (error) {
+        request.log.error({ error }, "Failed to re-add loyalty points in Strapi");
+      }
+    }
+
+    return { appointment: updated };
+  });
+
+  // ============================================
+  // Financial data endpoints
+  // ============================================
+
+  const financialQuerySchema = z.object({
+    from: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+    to: z.string().regex(/^\d{4}-\d{2}-\d{2}$/)
+  });
+
+  // Financial summary - totals for a period
+  app.get("/admin/financial/summary", { preHandler: app.requireAdmin }, async (request) => {
+    const query = financialQuerySchema.parse(request.query);
+    const fromDate = new Date(`${query.from}T00:00:00`);
+    const toDate = new Date(`${query.to}T23:59:59`);
+
+    // Get all DONE appointments in the period
+    const appointments = await prisma.appointment.findMany({
+      where: {
+        status: "DONE",
+        startAt: { gte: fromDate, lte: toDate }
+      },
+      include: { payments: true }
+    });
+
+    const totalRevenue = appointments.reduce(
+      (sum, a) => sum + Number(a.amountReceived ?? 0),
+      0
+    );
+
+    const totalCost = appointments.reduce(
+      (sum, a) => sum + (a.serviceCost ?? 0),
+      0
+    );
+
+    const appointmentCount = appointments.length;
+    const profit = totalRevenue - totalCost;
+
+    return {
+      from: query.from,
+      to: query.to,
+      totalRevenue,
+      totalCost,
+      profit,
+      appointmentCount
+    };
+  });
+
+  // Financial data grouped by service
+  app.get("/admin/financial/by-service", { preHandler: app.requireAdmin }, async (request) => {
+    const query = financialQuerySchema.parse(request.query);
+    const fromDate = new Date(`${query.from}T00:00:00`);
+    const toDate = new Date(`${query.to}T23:59:59`);
+
+    const appointments = await prisma.appointment.findMany({
+      where: {
+        status: "DONE",
+        startAt: { gte: fromDate, lte: toDate }
+      }
+    });
+
+    const byService = new Map<string, { serviceName: string; serviceId: number; revenue: number; cost: number; count: number }>();
+
+    for (const apt of appointments) {
+      const key = apt.serviceName;
+      const existing = byService.get(key) ?? {
+        serviceName: apt.serviceName,
+        serviceId: apt.serviceId,
+        revenue: 0,
+        cost: 0,
+        count: 0
+      };
+      existing.revenue += Number(apt.amountReceived ?? 0);
+      existing.cost += apt.serviceCost ?? 0;
+      existing.count += 1;
+      byService.set(key, existing);
+    }
+
+    return {
+      from: query.from,
+      to: query.to,
+      data: Array.from(byService.values()).sort((a, b) => b.revenue - a.revenue)
+    };
+  });
+
+  // Financial data grouped by payment method
+  app.get("/admin/financial/by-payment-method", { preHandler: app.requireAdmin }, async (request) => {
+    const query = financialQuerySchema.parse(request.query);
+    const fromDate = new Date(`${query.from}T00:00:00`);
+    const toDate = new Date(`${query.to}T23:59:59`);
+
+    const payments = await prisma.payment.findMany({
+      where: {
+        appointment: {
+          status: "DONE",
+          startAt: { gte: fromDate, lte: toDate }
+        }
+      }
+    });
+
+    const byMethod = new Map<string, { method: string; total: number; count: number }>();
+
+    for (const payment of payments) {
+      const existing = byMethod.get(payment.method) ?? {
+        method: payment.method,
+        total: 0,
+        count: 0
+      };
+      existing.total += Number(payment.amount);
+      existing.count += 1;
+      byMethod.set(payment.method, existing);
+    }
+
+    return {
+      from: query.from,
+      to: query.to,
+      data: Array.from(byMethod.values()).sort((a, b) => b.total - a.total)
+    };
+  });
+
+  // Daily financial breakdown
+  app.get("/admin/financial/daily", { preHandler: app.requireAdmin }, async (request) => {
+    const query = financialQuerySchema.parse(request.query);
+    const fromDate = new Date(`${query.from}T00:00:00`);
+    const toDate = new Date(`${query.to}T23:59:59`);
+
+    const appointments = await prisma.appointment.findMany({
+      where: {
+        status: "DONE",
+        startAt: { gte: fromDate, lte: toDate }
+      },
+      orderBy: { startAt: "asc" }
+    });
+
+    const daily = new Map<string, { date: string; revenue: number; cost: number; count: number }>();
+
+    for (const apt of appointments) {
+      const dateKey = apt.startAt.toISOString().slice(0, 10);
+      const existing = daily.get(dateKey) ?? { date: dateKey, revenue: 0, cost: 0, count: 0 };
+      existing.revenue += Number(apt.amountReceived ?? 0);
+      existing.cost += apt.serviceCost ?? 0;
+      existing.count += 1;
+      daily.set(dateKey, existing);
+    }
+
+    return {
+      from: query.from,
+      to: query.to,
+      data: Array.from(daily.values())
+    };
+  });
+
+  // ============================================
+  // Blocked dates batch enhancement
+  // ============================================
+
+  app.post("/admin/availability/blocked-dates/batch", { preHandler: app.requireAdmin }, async (request) => {
+    const schema = z.object({
+      dates: z.array(z.string().regex(/^\d{4}-\d{2}-\d{2}$/)).min(1),
+      reason: z.string().optional()
+    });
+
+    const data = schema.parse(request.body);
+    const results: Array<{ date: string; id: string; created: boolean }> = [];
+
+    for (const dateStr of data.dates) {
+      const existing = await prisma.blockedDate.findFirst({
+        where: { date: new Date(dateStr) }
+      });
+
+      if (existing) {
+        results.push({ date: dateStr, id: existing.id, created: false });
+        continue;
+      }
+
+      const blockedDate = await prisma.blockedDate.create({
+        data: {
+          date: new Date(dateStr),
+          reason: data.reason
+        }
+      });
+
+      results.push({ date: dateStr, id: blockedDate.id, created: true });
+    }
+
+    return { ok: true, results };
+  });
+
+  // ============================================
+  // DateTime override endpoints (special hours for specific days)
+  // ============================================
+
+  app.get("/admin/availability/time-overrides", { preHandler: app.requireAdmin }, async () => {
+    const overrides = await prisma.dateTimeOverride.findMany({
+      orderBy: { date: "asc" },
+      include: { timeWindows: true }
+    });
+
+    return {
+      overrides: overrides.map((o) => ({
+        id: o.id,
+        date: o.date.toISOString().slice(0, 10),
+        reason: o.reason,
+        timeWindows: o.timeWindows.map((tw) => ({
+          startMinute: tw.startMinute,
+          endMinute: tw.endMinute
+        }))
+      }))
+    };
+  });
+
+  const timeOverrideSchema = z.object({
+    dates: z.array(z.string().regex(/^\d{4}-\d{2}-\d{2}$/)).min(1),
+    timeWindows: z.array(z.object({
+      startMinute: z.number().min(0).max(1440),
+      endMinute: z.number().min(0).max(1440)
+    })).min(1),
+    reason: z.string().optional()
+  });
+
+  app.post("/admin/availability/time-overrides", { preHandler: app.requireAdmin }, async (request, reply) => {
+    const data = timeOverrideSchema.parse(request.body);
+
+    // Validate each time window
+    for (const tw of data.timeWindows) {
+      if (tw.endMinute <= tw.startMinute) {
+        return reply.code(400).send({ message: "End time must be after start time" });
+      }
+    }
+
+    const results: Array<{ date: string; id: string }> = [];
+
+    for (const dateStr of data.dates) {
+      // Delete existing override for this date if any
+      await prisma.dateTimeOverride.deleteMany({
+        where: { date: new Date(dateStr) }
+      });
+
+      const override = await prisma.dateTimeOverride.create({
+        data: {
+          date: new Date(dateStr),
+          reason: data.reason,
+          timeWindows: {
+            create: data.timeWindows.map((tw) => ({
+              startMinute: tw.startMinute,
+              endMinute: tw.endMinute
+            }))
+          }
+        }
+      });
+
+      results.push({ date: dateStr, id: override.id });
+    }
+
+    return { ok: true, results };
+  });
+
+  app.delete("/admin/availability/time-overrides/:id", { preHandler: app.requireAdmin }, async (request, reply) => {
+    const { id } = request.params as { id: string };
+
+    try {
+      await prisma.dateTimeOverride.delete({ where: { id } });
+      return { ok: true };
+    } catch {
+      return reply.code(404).send({ message: "Time override not found" });
+    }
+  });
+
+  // ============================================
+  // One-time backfill: populate serviceCost on existing appointments
+  // ============================================
+  app.post("/admin/backfill-service-cost", { preHandler: app.requireAdmin }, async (request) => {
+    const services = await fetchAllServices();
+    const costMap = new Map(services.map((s) => [s.id, s.cost]));
+
+    // Find appointments that still have serviceCost = 0
+    const appointments = await prisma.appointment.findMany({
+      where: { serviceCost: 0 },
+      select: { id: true, serviceId: true }
+    });
+
+    let updated = 0;
+    for (const apt of appointments) {
+      const cost = costMap.get(apt.serviceId) ?? 0;
+      if (cost > 0) {
+        await prisma.appointment.update({
+          where: { id: apt.id },
+          data: { serviceCost: cost }
+        });
+        updated++;
+      }
+    }
+
+    return { ok: true, total: appointments.length, updated };
   });
 };

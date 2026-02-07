@@ -6,6 +6,7 @@ import { prisma } from "../lib/db.js";
 import { config } from "../lib/config.js";
 import { 
   fetchServiceById, 
+  fetchActivePromotionPrice,
   addLoyaltyPoints, 
   findClientByPhone, 
   createClient,
@@ -336,6 +337,10 @@ export const registerAppointmentRoutes = (app: FastifyInstance) => {
       });
     }
 
+    // Check for active promotion price
+    const promoPrice = await fetchActivePromotionPrice(data.serviceId);
+    const effectivePrice = promoPrice ?? service.price;
+
     // Create appointment
     const appointment = await prisma.appointment.create({
       data: {
@@ -343,7 +348,8 @@ export const registerAppointmentRoutes = (app: FastifyInstance) => {
         serviceId: data.serviceId,
         serviceName: service.name,
         serviceDurationMin: service.durationMinutes,
-        servicePrice: service.price,
+        servicePrice: effectivePrice,
+        serviceCost: service.cost,
         startAt,
         endAt,
         notes: data.notes ?? null
@@ -370,7 +376,7 @@ export const registerAppointmentRoutes = (app: FastifyInstance) => {
       await queueConfirmationMessage({
         phone: user.phone,
         userName: user.name,
-        services: [{ name: service.name, durationMinutes: service.durationMinutes, price: service.price }],
+        services: [{ name: service.name, durationMinutes: service.durationMinutes, price: effectivePrice }],
         startAt,
         endAt,
         appointmentId: appointment.id,
@@ -544,18 +550,24 @@ export const registerAppointmentRoutes = (app: FastifyInstance) => {
 
     // Create appointments sequentially
     const appointments = [];
+    const servicesWithPrices: Array<{ name: string; durationMinutes: number; price: number }> = [];
     let currentStartAt = initialStartAt;
 
     for (const service of services) {
       const endAt = addMinutes(currentStartAt, service.durationMinutes);
       
+      // Check for active promotion price
+      const svcPromoPrice = await fetchActivePromotionPrice(service.id);
+      const svcEffectivePrice = svcPromoPrice ?? service.price;
+
       const appointment = await prisma.appointment.create({
         data: {
           userId: user.id,
           serviceId: service.id,
           serviceName: service.name,
           serviceDurationMin: service.durationMinutes,
-          servicePrice: service.price,
+          servicePrice: svcEffectivePrice,
+          serviceCost: service.cost,
           startAt: currentStartAt,
           endAt,
           notes: data.notes ?? null
@@ -563,6 +575,7 @@ export const registerAppointmentRoutes = (app: FastifyInstance) => {
       });
 
       appointments.push(appointment);
+      servicesWithPrices.push({ name: service.name, durationMinutes: service.durationMinutes, price: svcEffectivePrice });
       currentStartAt = endAt; // Next service starts when this one ends
     }
 
@@ -585,11 +598,7 @@ export const registerAppointmentRoutes = (app: FastifyInstance) => {
       await queueConfirmationMessage({
         phone: user.phone,
         userName: user.name,
-        services: services.map(s => ({ 
-          name: s.name, 
-          durationMinutes: s.durationMinutes, 
-          price: s.price 
-        })),
+        services: servicesWithPrices,
         startAt: initialStartAt,
         endAt: finalEndAt,
         appointmentId: appointments[0].id,

@@ -16,7 +16,7 @@ const displayFont = Playfair_Display({
 });
 
 export const metadata: Metadata = {
-  title: "Rayssa Lozorio Estética",
+  title: "Rayssa Lozorio",
   description: "Estética que realça sua beleza natural"
 };
 
@@ -30,6 +30,7 @@ type ContactContent = {
   whatsapp?: string;
   address?: string;
   footerNote?: string;
+  paymentMethodsText?: string;
 };
 
 export default async function RootLayout({
