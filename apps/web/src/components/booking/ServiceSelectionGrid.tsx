@@ -15,6 +15,7 @@ type Service = {
     promotionalPrice: number;
     endDate: string;
     validPaymentMethods?: string[];
+    paymentMethodsLabel?: string;
   } | null;
   originalPrice?: number;
 };
@@ -141,7 +142,7 @@ export function ServiceSelectionGrid({
                       {service.promotion.validPaymentMethods && service.promotion.validPaymentMethods.length > 0 && (
                         <div className="flex items-center gap-1 mt-0.5 text-[10px] sm:text-xs text-muted-foreground">
                           <CreditCard className="h-3 w-3 shrink-0" />
-                          <span>{service.promotion.validPaymentMethods.join(", ")}</span>
+                          <span>{service.promotion.paymentMethodsLabel ? `${service.promotion.paymentMethodsLabel} ` : ""}{service.promotion.validPaymentMethods.join(", ")}</span>
                         </div>
                       )}
                     </div>

@@ -574,9 +574,11 @@ export const registerAdminRoutes = (app: FastifyInstance) => {
       }
     }
 
-    // Delete the appointment
-    await prisma.appointment.delete({
-      where: { id }
+    // Delete the appointment and all related records
+    await prisma.$transaction(async (tx) => {
+      await tx.appointmentEvent.deleteMany({ where: { appointmentId: id } });
+      await tx.payment.deleteMany({ where: { appointmentId: id } });
+      await tx.appointment.delete({ where: { id } });
     });
 
     return { ok: true };

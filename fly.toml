@@ -39,9 +39,9 @@ primary_region = "gru"  # Sao Paulo - change to your preferred region
   timeout = "5s"
 
 [[vm]]
-  memory = "2gb"
+  memory = "1gb"
   cpu_kind = "shared"
-  cpus = 2
+  cpus = 1
 
 [mounts]
   source = "rah_data"

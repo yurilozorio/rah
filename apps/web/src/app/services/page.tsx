@@ -32,6 +32,7 @@ type Promotion = {
   endDate: string;
   promotionalPrice: number;
   validPaymentMethods?: Array<{ name: string }>;
+  paymentMethodsLabel?: string;
 };
 
 type HomeContent = {
@@ -78,7 +79,7 @@ export default async function ServicesPage() {
             return (
               <Card 
                 key={service.id} 
-                className={`card-hover group overflow-hidden border-0 bg-gradient-to-br from-white to-secondary/30 shadow-lg !p-0 !gap-0 ${
+                className={`card-hover group overflow-hidden border-0 bg-gradient-to-br from-white to-secondary/30 shadow-lg !p-0 !gap-0 h-full flex flex-col ${
                   promo ? "ring-2 ring-red-300 shadow-[0_0_20px_rgba(239,68,68,0.15)]" : ""
                 }`}
               >
@@ -107,7 +108,7 @@ export default async function ServicesPage() {
                   )}
                 </div>
                 
-                <CardContent className="flex flex-col gap-2 sm:gap-4 p-3 sm:p-6 !px-3 sm:!px-6">
+                <CardContent className="flex flex-1 flex-col gap-2 sm:gap-4 p-3 sm:p-6 !px-3 sm:!px-6">
                   <div>
                     <h3 className="text-sm sm:text-xl font-semibold font-display text-foreground group-hover:text-primary transition-colors line-clamp-2">
                       {service.name}
@@ -139,7 +140,7 @@ export default async function ServicesPage() {
                         {promo.validPaymentMethods && promo.validPaymentMethods.length > 0 && (
                           <div className="flex items-center gap-1 mt-0.5 text-[10px] sm:text-xs text-muted-foreground">
                             <CreditCard className="h-3 w-3 shrink-0" />
-                            <span>{promo.validPaymentMethods.map(pm => pm.name).join(", ")}</span>
+                            <span>{promo.paymentMethodsLabel ? `${promo.paymentMethodsLabel} ` : ""}{promo.validPaymentMethods.map(pm => pm.name).join(", ")}</span>
                           </div>
                         )}
                       </div>
@@ -150,7 +151,7 @@ export default async function ServicesPage() {
                     <p className="line-clamp-2 text-xs sm:text-sm text-muted-foreground hidden sm:block whitespace-pre-line">{service.description}</p>
                   )}
                   
-                  <div className="flex flex-col sm:flex-row gap-2 sm:gap-3">
+                  <div className="flex flex-col sm:flex-row gap-2 sm:gap-3 mt-auto">
                     <Button 
                       asChild 
                       variant="outline" 

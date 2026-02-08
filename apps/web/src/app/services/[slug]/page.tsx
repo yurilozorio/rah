@@ -5,7 +5,8 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { fetchStrapi, getStrapiAssetBaseUrl, getStrapiMediaUrl, normalizeCollection, type StrapiMedia } from "@/lib/strapi";
 import { formatPrice } from "@/lib/format";
-import { Clock, Sparkles, CheckCircle, ArrowLeft, ArrowRight, Calendar } from "lucide-react";
+import { buildActivePromotionsMap } from "@/lib/promotions";
+import { Clock, Sparkles, CheckCircle, ArrowLeft, ArrowRight, Calendar, Tag, Timer, CreditCard } from "lucide-react";
 
 type Service = {
   id: number;
@@ -15,6 +16,16 @@ type Service = {
   durationMinutes: number;
   description?: string;
   coverImage?: StrapiMedia;
+};
+
+type Promotion = {
+  id: number;
+  service?: { id: number } | null;
+  startDate: string;
+  endDate: string;
+  promotionalPrice: number;
+  validPaymentMethods?: Array<{ name: string }>;
+  paymentMethodsLabel?: string;
 };
 
 const getImageUrl = (media?: StrapiMedia | string | null) => {
@@ -41,8 +52,13 @@ export default async function ServicePage({ params }: { params: Promise<{ slug: 
   const allServicesResponse = await fetchStrapi<{ id: number; attributes: Service }[]>(
     `/api/services?sort=order:asc&populate=coverImage`
   );
+  const promotionsResponse = await fetchStrapi<{ id: number; attributes: Promotion }[]>(
+    "/api/promotions?populate=*&filters[active][$eq]=true&filters[endDate][$gte]=" + new Date().toISOString()
+  );
   const services = normalizeCollection(response.data);
   const allServices = normalizeCollection(allServicesResponse.data);
+  const promotions = normalizeCollection(promotionsResponse.data);
+  const activePromotions = buildActivePromotionsMap(promotions);
   const service = services[0];
 
   if (!service) {
@@ -50,6 +66,7 @@ export default async function ServicePage({ params }: { params: Promise<{ slug: 
   }
 
   const coverImage = getImageUrl(service.coverImage);
+  const promo = activePromotions.get(service.id);
   
   // Get related services (excluding current)
   const relatedServices = allServices
@@ -76,7 +93,7 @@ export default async function ServicePage({ params }: { params: Promise<{ slug: 
           
           <div className="grid gap-8 lg:grid-cols-2 lg:items-center">
             {/* Image */}
-            <div className="relative aspect-[4/3] w-full overflow-hidden rounded-2xl shadow-xl">
+            <div className={`relative aspect-[4/3] w-full overflow-hidden rounded-2xl shadow-xl ${promo ? "ring-2 ring-red-300 shadow-[0_0_20px_rgba(239,68,68,0.15)]" : ""}`}>
               {coverImage ? (
                 <>
                   <Image 
@@ -92,6 +109,12 @@ export default async function ServicePage({ params }: { params: Promise<{ slug: 
               ) : (
                 <div className="flex h-full items-center justify-center bg-gradient-to-br from-secondary to-accent/50">
                   <Sparkles className="h-24 w-24 text-primary/30" />
+                </div>
+              )}
+              {promo && (
+                <div className="absolute top-3 left-3 z-10 flex items-center gap-1.5 rounded-full bg-gradient-to-r from-red-500 to-orange-500 px-3 py-1.5 text-sm font-bold text-white shadow-lg">
+                  <Tag className="h-4 w-4" />
+                  Promoção
                 </div>
               )}
             </div>
@@ -125,10 +148,36 @@ export default async function ServicePage({ params }: { params: Promise<{ slug: 
                   </div>
                   <div>
                     <p className="text-xs text-muted-foreground">Investimento</p>
-                    <p className="font-semibold text-primary">{formatPrice(service.price)}</p>
+                    {promo ? (
+                      <>
+                        <p className="text-xs line-through text-muted-foreground">{formatPrice(service.price)}</p>
+                        <p className="font-bold text-red-600">{formatPrice(promo.promotionalPrice)}</p>
+                      </>
+                    ) : (
+                      <p className="font-semibold text-primary">{formatPrice(service.price)}</p>
+                    )}
                   </div>
                 </div>
               </div>
+              
+              {promo && (
+                <div className="rounded-xl bg-gradient-to-r from-red-50 to-orange-50 p-4 border border-red-100">
+                  <div className="flex items-center gap-2 text-sm text-red-600 font-semibold">
+                    <Timer className="h-4 w-4 shrink-0" />
+                    <span>
+                      Promoção válida até {new Date(promo.endDate).toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit", timeZone: "America/Sao_Paulo" })}
+                      {" às "}
+                      {new Date(promo.endDate).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit", timeZone: "America/Sao_Paulo" })}
+                    </span>
+                  </div>
+                  {promo.validPaymentMethods && promo.validPaymentMethods.length > 0 && (
+                    <div className="flex items-center gap-2 mt-1 text-sm text-muted-foreground">
+                      <CreditCard className="h-4 w-4 shrink-0" />
+                      <span>{promo.paymentMethodsLabel ? `${promo.paymentMethodsLabel} ` : ""}{promo.validPaymentMethods.map(pm => pm.name).join(", ")}</span>
+                    </div>
+                  )}
+                </div>
+              )}
               
               {/* CTA Button */}
               <Button 
@@ -214,7 +263,14 @@ export default async function ServicePage({ params }: { params: Promise<{ slug: 
         <div className="flex items-center justify-between gap-4">
           <div>
             <p className="font-semibold text-foreground">{service.name}</p>
-            <p className="text-sm text-primary font-medium">{formatPrice(service.price)}</p>
+            {promo ? (
+              <div className="flex items-center gap-2">
+                <p className="text-xs line-through text-muted-foreground">{formatPrice(service.price)}</p>
+                <p className="text-sm text-red-600 font-bold">{formatPrice(promo.promotionalPrice)}</p>
+              </div>
+            ) : (
+              <p className="text-sm text-primary font-medium">{formatPrice(service.price)}</p>
+            )}
           </div>
           <Button 
             asChild 

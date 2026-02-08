@@ -45,6 +45,8 @@ COPY packages/db ./packages/db
 COPY apps/worker ./apps/worker
 
 RUN npm install --workspaces --include-workspace-root
+# Ensure worker runtime deps are in root node_modules (npm may skip hoisting some)
+RUN test -d node_modules/pino || npm install pino --no-save
 RUN npm run prisma:generate --workspace packages/db
 RUN npm run build --workspace packages/db
 RUN npm run build --workspace apps/worker

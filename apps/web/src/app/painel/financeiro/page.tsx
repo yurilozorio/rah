@@ -284,8 +284,8 @@ export default function FinanceiroPage() {
                         tick={{ fontSize: 11 }}
                       />
                       <Tooltip
-                        formatter={(value: number) => formatPrice(value)}
-                        labelFormatter={formatDateLabel}
+                        formatter={(value) => formatPrice(Number(value))}
+                        labelFormatter={(label) => formatDateLabel(String(label))}
                       />
                       <Bar dataKey="revenue" name="Receita" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
                     </BarChart>
@@ -315,15 +315,15 @@ export default function FinanceiroPage() {
                         cx="50%"
                         cy="50%"
                         outerRadius={90}
-                        label={({ name, percent }) =>
-                          `${name} ${(percent * 100).toFixed(0)}%`
+                        label={({ name, percent }: { name?: string; percent?: number }) =>
+                          `${name ?? ""} ${((percent ?? 0) * 100).toFixed(0)}%`
                         }
                       >
                         {byPaymentMethod.map((_, index) => (
                           <Cell key={index} fill={PIE_COLORS[index % PIE_COLORS.length]} />
                         ))}
                       </Pie>
-                      <Tooltip formatter={(value: number) => formatPrice(value)} />
+                      <Tooltip formatter={(value) => formatPrice(Number(value))} />
                       <Legend />
                     </PieChart>
                   </ResponsiveContainer>
@@ -351,7 +351,7 @@ export default function FinanceiroPage() {
                       width={140}
                       tick={{ fontSize: 12 }}
                     />
-                    <Tooltip formatter={(value: number) => formatPrice(value)} />
+                    <Tooltip formatter={(value) => formatPrice(Number(value))} />
                     <Bar dataKey="revenue" name="Receita" radius={[0, 4, 4, 0]}>
                       {byService.map((_, index) => (
                         <Cell key={index} fill={CHART_COLORS[index % CHART_COLORS.length]} />

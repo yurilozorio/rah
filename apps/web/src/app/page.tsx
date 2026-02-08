@@ -32,6 +32,7 @@ type Promotion = {
   endDate: string;
   promotionalPrice: number;
   validPaymentMethods?: Array<{ name: string }>;
+  paymentMethodsLabel?: string;
 };
 
 type Testimonial = {
@@ -182,7 +183,7 @@ export default async function Home() {
         className="bg-white"
       >
         <div className="grid grid-cols-2 gap-3 sm:gap-8 lg:grid-cols-3">
-          {services.map((service) => {
+          {services.slice(0, 6).map((service) => {
             const coverImage = getImageUrl(service.coverImage);
             const promo = activePromotions.get(service.id);
             return (
@@ -243,15 +244,12 @@ export default async function Home() {
                         {promo.validPaymentMethods && promo.validPaymentMethods.length > 0 && (
                           <div className="flex items-center gap-1 mt-0.5 text-[10px] sm:text-xs text-muted-foreground">
                             <CreditCard className="h-3 w-3 shrink-0" />
-                            <span>{promo.validPaymentMethods.map(pm => pm.name).join(", ")}</span>
+                            <span>{promo.paymentMethodsLabel ? `${promo.paymentMethodsLabel} ` : ""}{promo.validPaymentMethods.map(pm => pm.name).join(", ")}</span>
                           </div>
                         )}
                       </div>
                     )}
                   </div>
-                  {service.description ? (
-                    <p className="line-clamp-2 text-xs sm:text-sm text-muted-foreground hidden sm:block whitespace-pre-line">{service.description}</p>
-                  ) : null}
                   <Button asChild size="sm" className="bg-primary/10 text-primary hover:bg-primary hover:text-white transition-colors text-xs sm:text-sm h-8 sm:h-10">
                     <Link href={`/services/${service.slug}`}>Ver detalhes</Link>
                   </Button>

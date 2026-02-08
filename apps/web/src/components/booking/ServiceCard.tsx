@@ -11,6 +11,7 @@ type ServiceCardProps = {
     originalPrice: number;
     endDate: string;
     validPaymentMethods?: string[];
+    paymentMethodsLabel?: string;
   } | null;
 };
 
@@ -53,7 +54,7 @@ export function ServiceCard({ name, durationMinutes, price, promotion }: Service
             {promotion.validPaymentMethods && promotion.validPaymentMethods.length > 0 && (
               <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
                 <CreditCard className="h-3.5 w-3.5 shrink-0" />
-                <span>{promotion.validPaymentMethods.join(", ")}</span>
+                <span>{promotion.paymentMethodsLabel ? `${promotion.paymentMethodsLabel} ` : ""}{promotion.validPaymentMethods.join(", ")}</span>
               </div>
             )}
           </div>

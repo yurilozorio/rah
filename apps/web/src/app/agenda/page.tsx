@@ -25,6 +25,7 @@ type Service = {
     promotionalPrice: number;
     endDate: string;
     validPaymentMethods?: string[];
+    paymentMethodsLabel?: string;
   } | null;
 };
 
@@ -59,6 +60,7 @@ type StrapiPromotion = {
   promotionalPrice: number;
   endBehavior: string;
   validPaymentMethods?: Array<{ name: string }>;
+  paymentMethodsLabel?: string;
 };
 
 const fetchPromotions = async (): Promise<StrapiPromotion[]> => {
@@ -84,6 +86,7 @@ const fetchPromotions = async (): Promise<StrapiPromotion[]> => {
         endDate: attrs.endDate,
         promotionalPrice: Number(attrs.promotionalPrice ?? 0),
         endBehavior: attrs.endBehavior ?? "revert",
+        paymentMethodsLabel: attrs.paymentMethodsLabel ?? undefined,
         validPaymentMethods: (attrs.validPaymentMethods?.data ?? attrs.validPaymentMethods ?? []).map(
           (pm: any) => ({ name: pm.name ?? pm?.attributes?.name ?? "" })
         ),
@@ -132,6 +135,7 @@ const fetchServices = async (): Promise<Service[]> => {
       promotionalPrice: promo.promotionalPrice,
       endDate: promo.endDate,
       validPaymentMethods: promo.validPaymentMethods?.map((pm) => pm.name).filter(Boolean),
+      paymentMethodsLabel: promo.paymentMethodsLabel,
     };
     // Store original price for strikethrough display, then auto-apply promo price
     (service as any).originalPrice = originalPrice;

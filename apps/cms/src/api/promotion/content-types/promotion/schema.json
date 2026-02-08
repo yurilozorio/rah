@@ -43,6 +43,9 @@
       "relation": "manyToMany",
       "target": "api::payment-method.payment-method"
     },
+    "paymentMethodsLabel": {
+      "type": "string"
+    },
     "active": {
       "type": "boolean",
       "default": true
