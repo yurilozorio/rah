@@ -46,7 +46,7 @@ type Appointment = {
   notes?: string;
   amountReceived?: number;
   payments?: Payment[];
-  user: { id: string; name: string; phone: string; strapiClientId?: string };
+  user: { id: string; name: string; phone: string };
 };
 
 type Service = {
@@ -60,6 +60,18 @@ type User = {
   id: string;
   name: string;
   phone: string;
+};
+
+type StrapiServiceApiItem = {
+  id?: number;
+  name?: string;
+  durationMinutes?: number;
+  price?: number;
+  attributes?: {
+    name?: string;
+    durationMinutes?: number;
+    price?: number;
+  };
 };
 
 type ViewMode = "week" | "month";
@@ -152,8 +164,9 @@ export default function AdminAgendaPage() {
       const response = await fetch(url);
       if (!response.ok) throw new Error("Failed to fetch services");
       const data = await response.json();
-      const serviceList: Service[] = (data.data || []).map((item: any) => ({
-        id: item.id,
+      const rawServices: StrapiServiceApiItem[] = Array.isArray(data?.data) ? data.data : [];
+      const serviceList: Service[] = rawServices.map((item) => ({
+        id: Number(item.id ?? 0),
         name: item.name || item.attributes?.name || "Serviço",
         durationMinutes: item.durationMinutes || item.attributes?.durationMinutes || 60,
         price: item.price || item.attributes?.price || 0,
@@ -312,6 +325,7 @@ export default function AdminAgendaPage() {
       endAt?: string;
       durationMinutes?: number;
       notes?: string;
+      sendWhatsAppConfirmation?: boolean;
     }) => {
       if (!token) return;
 
@@ -341,6 +355,7 @@ export default function AdminAgendaPage() {
               phone: data.phone,
               durationMinutes: data.durationMinutes,
               notes: data.notes,
+              sendWhatsAppConfirmation: Boolean(data.sendWhatsAppConfirmation),
             }),
           },
           token

@@ -58,7 +58,7 @@ su - postgres -c "psql -c \"ALTER USER ${POSTGRES_USER} WITH PASSWORD '${POSTGRE
 echo "Running database migrations..."
 cd /app/api
 DATABASE_URL="postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@127.0.0.1:5432/${POSTGRES_DB}?schema=api" \
-    npx prisma db push --schema packages/db/prisma/schema.prisma --accept-data-loss || true
+    npx prisma db push --schema packages/db/prisma/schema.prisma --accept-data-loss
 
 # -----------------------------------------------------------------------------
 # Ensure uploads directory exists and is linked

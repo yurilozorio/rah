@@ -464,41 +464,6 @@ export interface ApiAboutAbout extends Struct.SingleTypeSchema {
   };
 }
 
-export interface ApiClientClient extends Struct.CollectionTypeSchema {
-  collectionName: 'clients';
-  info: {
-    description: 'Booking clients';
-    displayName: 'Client';
-    pluralName: 'clients';
-    singularName: 'client';
-  };
-  options: {
-    draftAndPublish: false;
-  };
-  attributes: {
-    createdAt: Schema.Attribute.DateTime;
-    createdBy: Schema.Attribute.Relation<'oneToOne', 'admin::user'> &
-      Schema.Attribute.Private;
-    email: Schema.Attribute.Email;
-    locale: Schema.Attribute.String & Schema.Attribute.Private;
-    localizations: Schema.Attribute.Relation<
-      'oneToMany',
-      'api::client.client'
-    > &
-      Schema.Attribute.Private;
-    loyaltyPoints: Schema.Attribute.Integer & Schema.Attribute.DefaultTo<0>;
-    name: Schema.Attribute.String & Schema.Attribute.Required;
-    notes: Schema.Attribute.Text;
-    phone: Schema.Attribute.String &
-      Schema.Attribute.Required &
-      Schema.Attribute.Unique;
-    publishedAt: Schema.Attribute.DateTime;
-    updatedAt: Schema.Attribute.DateTime;
-    updatedBy: Schema.Attribute.Relation<'oneToOne', 'admin::user'> &
-      Schema.Attribute.Private;
-  };
-}
-
 export interface ApiContactContact extends Struct.SingleTypeSchema {
   collectionName: 'contacts';
   info: {
@@ -1316,7 +1281,6 @@ declare module '@strapi/strapi' {
       'admin::transfer-token-permission': AdminTransferTokenPermission;
       'admin::user': AdminUser;
       'api::about.about': ApiAboutAbout;
-      'api::client.client': ApiClientClient;
       'api::contact.contact': ApiContactContact;
       'api::home.home': ApiHomeHome;
       'api::notification-setting.notification-setting': ApiNotificationSettingNotificationSetting;

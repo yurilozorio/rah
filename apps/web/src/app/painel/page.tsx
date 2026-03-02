@@ -100,10 +100,10 @@ export default function AdminPage() {
         </Card>
         <Card>
           <CardContent className="space-y-2 sm:space-y-3 p-3 sm:p-5">
-            <h2 className="text-sm sm:text-lg font-semibold">Fidelidade</h2>
-            <p className="text-xs sm:text-sm text-muted-foreground hidden sm:block">Ajuste de pontos.</p>
+            <h2 className="text-sm sm:text-lg font-semibold">Clientes</h2>
+            <p className="text-xs sm:text-sm text-muted-foreground hidden sm:block">Cadastre, edite e ajuste pontos.</p>
             <Button asChild variant="outline" size="sm" className="text-xs sm:text-sm h-8 sm:h-10">
-              <Link href="/painel/loyalty">Gerenciar pontos</Link>
+              <Link href="/painel/clientes">Abrir clientes</Link>
             </Button>
           </CardContent>
         </Card>

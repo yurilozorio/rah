@@ -14,7 +14,7 @@ model User {
   phone          String    @unique
   passwordHash   String?   // Only for ADMIN users
   role           Role      @default(USER)
-  strapiClientId String?   // Strapi Client documentId for CMS integration
+  loyaltyPoints  Int       @default(0)
   appointments   Appointment[]
   createdAt      DateTime  @default(now())
   updatedAt      DateTime  @updatedAt

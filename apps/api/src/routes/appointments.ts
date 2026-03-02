@@ -2,18 +2,14 @@ import { FastifyInstance } from "fastify";
 import { z } from "zod";
 import { addMinutes } from "date-fns";
 import { formatInTimeZone, fromZonedTime } from "date-fns-tz";
+import { Prisma } from "@rah/db";
 import { prisma } from "../lib/db.js";
 import { config } from "../lib/config.js";
 import { 
-  fetchServiceById, 
+  fetchServiceById,
   fetchActivePromotionPrice,
-  addLoyaltyPoints, 
-  findClientByPhone, 
-  createClient,
   fetchNotificationSettings,
-  fetchContactInfo,
-  type NotificationSettings,
-  type ContactInfo
+  fetchContactInfo
 } from "../lib/strapi.js";
 import {
   buildSlots,
@@ -21,7 +17,12 @@ import {
   WeekSchedule
 } from "../lib/availability.js";
 import { getBoss } from "../lib/boss.js";
-import { queueWhatsAppMessage } from "../lib/whatsapp.js";
+import {
+  getPhoneLookupVariants,
+  normalizePhoneNumber,
+  queueAppointmentConfirmationMessage
+} from "../lib/appointment-confirmation.js";
+import { increaseUserLoyaltyPoints } from "../lib/loyalty.js";
 
 const createSchema = z.object({
   serviceId: z.number(),
@@ -41,117 +42,6 @@ const batchCreateSchema = z.object({
 
 // Default slot interval (30 minutes)
 const DEFAULT_SLOT_INTERVAL = 30;
-
-// Brazil country code
-const BRAZIL_COUNTRY_CODE = "55";
-
-/**
- * Normalize phone number: remove non-digits and add Brazil country code if needed.
- * Users enter DDD + number (e.g., 27996975347), we prepend 55 for WhatsApp.
- */
-function normalizePhoneNumber(phone: string): string {
-  const digitsOnly = phone.replace(/\D/g, "");
-  
-  // If already starts with 55 and has the right length (13 digits for mobile), keep as is
-  if (digitsOnly.startsWith(BRAZIL_COUNTRY_CODE) && digitsOnly.length >= 12) {
-    return digitsOnly;
-  }
-  
-  // Otherwise, prepend Brazil country code
-  return `${BRAZIL_COUNTRY_CODE}${digitsOnly}`;
-}
-
-// Helper to compose WhatsApp confirmation message from template
-type ComposeMessageParams = {
-  template: string;
-  name: string;
-  services: string;
-  date: string;
-  time: string;
-  totalDuration: number;
-  totalPrice: number;
-};
-
-function composeMessage(params: ComposeMessageParams): string {
-  const { template, name, services, date, time, totalDuration, totalPrice } = params;
-  
-  return template
-    .replace(/\{\{name\}\}/g, name)
-    .replace(/\{\{services\}\}/g, services)
-    .replace(/\{\{date\}\}/g, date)
-    .replace(/\{\{time\}\}/g, time)
-    .replace(/\{\{totalDuration\}\}/g, String(totalDuration))
-    .replace(/\{\{totalPrice\}\}/g, totalPrice.toFixed(2).replace(".", ","));
-}
-
-// Helper to queue WhatsApp confirmation via Baileys worker
-async function queueConfirmationMessage(params: {
-  phone: string;
-  userName: string;
-  services: Array<{ name: string; durationMinutes: number; price: number }>;
-  startAt: Date;
-  endAt: Date;
-  appointmentId: string;
-  notificationSettings: NotificationSettings | null;
-  contactInfo: ContactInfo | null;
-  log: { info: (msg: any, ...args: any[]) => void; error: (msg: any, ...args: any[]) => void };
-}): Promise<void> {
-  const { phone, userName, services, startAt, endAt, appointmentId, notificationSettings, contactInfo, log } = params;
-
-  if (!notificationSettings?.confirmationMessageTemplate) {
-    log.info("No confirmation template configured, skipping WhatsApp");
-    return;
-  }
-
-  const dateLabel = formatInTimeZone(startAt, config.TIMEZONE, "dd/MM/yyyy");
-  const timeLabel = formatInTimeZone(startAt, config.TIMEZONE, "HH:mm");
-  const serviceNames = services.map(s => s.name).join(", ");
-  const totalDuration = services.reduce((sum, s) => sum + s.durationMinutes, 0);
-  const totalPrice = services.reduce((sum, s) => sum + s.price, 0);
-
-  // Compose text message (clean, no URLs)
-  const message = composeMessage({
-    template: notificationSettings.confirmationMessageTemplate,
-    name: userName,
-    services: serviceNames,
-    date: dateLabel,
-    time: timeLabel,
-    totalDuration,
-    totalPrice
-  });
-
-  // Build location data for native WhatsApp location message
-  const locationData = notificationSettings.businessLatitude && notificationSettings.businessLongitude
-    ? {
-        latitude: Number(notificationSettings.businessLatitude),
-        longitude: Number(notificationSettings.businessLongitude),
-        name: notificationSettings.businessName,
-        address: contactInfo?.address ?? ""
-      }
-    : undefined;
-
-  // Build calendar data for .ics file attachment
-  const calendarData = {
-    title: `Agendamento - ${notificationSettings.businessName}`,
-    startAt: startAt.toISOString(),
-    endAt: endAt.toISOString(),
-    location: contactInfo?.address ?? undefined,
-    description: `Procedimentos: ${serviceNames}`,
-    timezone: config.TIMEZONE,
-    caption: notificationSettings.calendarCaption ?? undefined
-  };
-
-  // Queue for async send via Baileys worker
-  await queueWhatsAppMessage({
-    phone,
-    message,
-    appointmentId,
-    eventType: "CONFIRMATION_SENT",
-    location: locationData,
-    calendar: calendarData
-  });
-  log.info({ phone, appointmentId }, "WhatsApp confirmation queued");
-}
 
 // Helper to get global availability schedule
 async function getGlobalSchedule(): Promise<{
@@ -301,40 +191,51 @@ export const registerAppointmentRoutes = (app: FastifyInstance) => {
 
     // Normalize phone (remove non-digits and add country code)
     const normalizedPhone = normalizePhoneNumber(data.phone);
+    const phoneVariants = getPhoneLookupVariants(data.phone);
     request.log.info({ originalPhone: data.phone, normalizedPhone }, "Phone normalization");
 
-    // Find or create Strapi client
-    let strapiClientId: string | null = null;
-    try {
-      let strapiClient = await findClientByPhone(normalizedPhone);
-      if (!strapiClient) {
-        strapiClient = await createClient({
-          name: data.name,
-          phone: normalizedPhone
-        });
-      }
-      strapiClientId = strapiClient.documentId;
-    } catch (error) {
-      // Log error but don't fail - continue without Strapi link
-      request.log.error({ error }, "Failed to sync with Strapi");
-    }
-
     // Find or create user by phone
-    let user = await prisma.user.findUnique({ where: { phone: normalizedPhone } });
+    let user = await prisma.user.findFirst({
+      where: {
+        role: "USER",
+        phone: { in: phoneVariants }
+      },
+      orderBy: { createdAt: "asc" }
+    });
+
     if (!user) {
       user = await prisma.user.create({
         data: {
           name: data.name,
           phone: normalizedPhone,
-          strapiClientId
+          role: "USER"
         }
       });
-    } else if (strapiClientId && !user.strapiClientId) {
-      // Link existing user to Strapi client
-      user = await prisma.user.update({
-        where: { id: user.id },
-        data: { strapiClientId }
-      });
+    } else if (user.phone !== normalizedPhone) {
+      try {
+        user = await prisma.user.update({
+          where: { id: user.id },
+          data: { phone: normalizedPhone }
+        });
+      } catch (error) {
+        if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {
+          const canonicalUser = await prisma.user.findFirst({
+            where: {
+              role: "USER",
+              phone: normalizedPhone
+            },
+            orderBy: { createdAt: "asc" }
+          });
+
+          if (canonicalUser) {
+            user = canonicalUser;
+          } else {
+            throw error;
+          }
+        } else {
+          throw error;
+        }
+      }
     }
 
     // Check for active promotion price
@@ -356,15 +257,7 @@ export const registerAppointmentRoutes = (app: FastifyInstance) => {
       }
     });
 
-    // Update loyalty points in Strapi if client is linked
-    if (user.strapiClientId) {
-      try {
-        await addLoyaltyPoints(user.strapiClientId, 1);
-      } catch (error) {
-        // Log error but don't fail the booking
-        request.log.error({ error }, "Failed to update loyalty points in Strapi");
-      }
-    }
+    await increaseUserLoyaltyPoints(user.id, 1);
 
     // Queue WhatsApp confirmation via Baileys worker
     try {
@@ -373,7 +266,7 @@ export const registerAppointmentRoutes = (app: FastifyInstance) => {
         fetchContactInfo()
       ]);
 
-      await queueConfirmationMessage({
+      await queueAppointmentConfirmationMessage({
         phone: user.phone,
         userName: user.name,
         services: [{ name: service.name, durationMinutes: service.durationMinutes, price: effectivePrice }],
@@ -515,37 +408,50 @@ export const registerAppointmentRoutes = (app: FastifyInstance) => {
 
     // Normalize phone (remove non-digits and add country code)
     const normalizedPhone = normalizePhoneNumber(data.phone);
-
-    // Find or create Strapi client
-    let strapiClientId: string | null = null;
-    try {
-      let strapiClient = await findClientByPhone(normalizedPhone);
-      if (!strapiClient) {
-        strapiClient = await createClient({
-          name: data.name,
-          phone: normalizedPhone
-        });
-      }
-      strapiClientId = strapiClient.documentId;
-    } catch (error) {
-      request.log.error({ error }, "Failed to sync with Strapi");
-    }
+    const phoneVariants = getPhoneLookupVariants(data.phone);
 
     // Find or create user
-    let user = await prisma.user.findUnique({ where: { phone: normalizedPhone } });
+    let user = await prisma.user.findFirst({
+      where: {
+        role: "USER",
+        phone: { in: phoneVariants }
+      },
+      orderBy: { createdAt: "asc" }
+    });
+
     if (!user) {
       user = await prisma.user.create({
         data: {
           name: data.name,
           phone: normalizedPhone,
-          strapiClientId
+          role: "USER"
         }
       });
-    } else if (strapiClientId && !user.strapiClientId) {
-      user = await prisma.user.update({
-        where: { id: user.id },
-        data: { strapiClientId }
-      });
+    } else if (user.phone !== normalizedPhone) {
+      try {
+        user = await prisma.user.update({
+          where: { id: user.id },
+          data: { phone: normalizedPhone }
+        });
+      } catch (error) {
+        if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {
+          const canonicalUser = await prisma.user.findFirst({
+            where: {
+              role: "USER",
+              phone: normalizedPhone
+            },
+            orderBy: { createdAt: "asc" }
+          });
+
+          if (canonicalUser) {
+            user = canonicalUser;
+          } else {
+            throw error;
+          }
+        } else {
+          throw error;
+        }
+      }
     }
 
     // Create appointments sequentially
@@ -579,14 +485,7 @@ export const registerAppointmentRoutes = (app: FastifyInstance) => {
       currentStartAt = endAt; // Next service starts when this one ends
     }
 
-    // Update loyalty points (once for all services)
-    if (user.strapiClientId) {
-      try {
-        await addLoyaltyPoints(user.strapiClientId, services.length);
-      } catch (error) {
-        request.log.error({ error }, "Failed to update loyalty points in Strapi");
-      }
-    }
+    await increaseUserLoyaltyPoints(user.id, services.length);
 
     // Queue WhatsApp confirmation for the batch via Baileys worker
     try {
@@ -595,7 +494,7 @@ export const registerAppointmentRoutes = (app: FastifyInstance) => {
         fetchContactInfo()
       ]);
 
-      await queueConfirmationMessage({
+      await queueAppointmentConfirmationMessage({
         phone: user.phone,
         userName: user.name,
         services: servicesWithPrices,

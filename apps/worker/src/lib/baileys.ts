@@ -3,7 +3,8 @@ import makeWASocket, {
   useMultiFileAuthState,
   WASocket,
   Browsers,
-  ConnectionState
+  ConnectionState,
+  fetchLatestBaileysVersion
 } from "@whiskeysockets/baileys";
 import { Boom } from "@hapi/boom";
 import pino from "pino";
@@ -24,11 +25,25 @@ export async function initBaileys(): Promise<void> {
   const { state, saveCreds } = await useMultiFileAuthState(config.BAILEYS_AUTH_DIR);
 
   const connectToWhatsApp = async () => {
+    let version: [number, number, number] | undefined;
+    try {
+      const latest = await fetchLatestBaileysVersion();
+      version = latest.version;
+      // eslint-disable-next-line no-console
+      console.log(
+        `Using WhatsApp Web version ${latest.version.join(".")} (isLatest: ${latest.isLatest})`
+      );
+    } catch (error) {
+      // eslint-disable-next-line no-console
+      console.warn("Failed to fetch latest Baileys version, falling back to default", error);
+    }
+
     sock = makeWASocket({
       auth: state,
       logger,
       browser: Browsers.ubuntu("RAH Worker"),
-      markOnlineOnConnect: false
+      markOnlineOnConnect: false,
+      ...(version ? { version } : {})
     });
 
     sock.ev.on("connection.update", (update: Partial<ConnectionState>) => {
@@ -50,12 +65,25 @@ export async function initBaileys(): Promise<void> {
       if (connection === "close") {
         connectionReady = false;
         const statusCode = (lastDisconnect?.error as Boom)?.output?.statusCode;
+        const disconnectMessage =
+          lastDisconnect?.error instanceof Error
+            ? lastDisconnect.error.message
+            : lastDisconnect?.error
+              ? String(lastDisconnect.error)
+              : "unknown";
         const shouldReconnect = statusCode !== DisconnectReason.loggedOut;
 
         // eslint-disable-next-line no-console
         console.log(
-          `Baileys connection closed (status: ${statusCode}), reconnecting: ${shouldReconnect}`
+          `Baileys connection closed (status: ${statusCode}, message: ${disconnectMessage}), reconnecting: ${shouldReconnect}`
         );
+
+        if (statusCode === 405) {
+          // eslint-disable-next-line no-console
+          console.error(
+            "Baileys status 405 can indicate WhatsApp Web handshake/version rejection."
+          );
+        }
 
         if (shouldReconnect) {
           // Reconnect after a short delay

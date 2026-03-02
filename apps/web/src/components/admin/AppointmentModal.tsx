@@ -74,6 +74,7 @@ type AppointmentModalProps = {
     endAt?: string;
     durationMinutes?: number;
     notes?: string;
+    sendWhatsAppConfirmation?: boolean;
   }) => Promise<void>;
   onDelete?: (id: string) => Promise<void>;
   onMarkDone?: () => void;
@@ -150,6 +151,7 @@ export function AppointmentModal({
   const [startAt, setStartAt] = useState("");
   const [durationMinutes, setDurationMinutes] = useState<number>(60);
   const [notes, setNotes] = useState("");
+  const [sendWhatsAppConfirmation, setSendWhatsAppConfirmation] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
@@ -183,6 +185,7 @@ export function AppointmentModal({
         setStartAt(formatDateTimeLocal(new Date(appointment.startAt)));
         setDurationMinutes(appointment.serviceDurationMin || 60);
         setNotes(appointment.notes || "");
+        setSendWhatsAppConfirmation(false);
         setSearchQuery("");
         setSelectedUserFromSuggestion(false);
       } else {
@@ -193,6 +196,7 @@ export function AppointmentModal({
         setStartAt(initialDate ? formatDateTimeLocal(initialDate) : "");
         setDurationMinutes(60);
         setNotes("");
+        setSendWhatsAppConfirmation(false);
         setSearchQuery("");
         setSelectedUserFromSuggestion(false);
       }
@@ -260,6 +264,7 @@ export function AppointmentModal({
         endAt: endDate.toISOString(),
         durationMinutes,
         notes: notes || undefined,
+        sendWhatsAppConfirmation: !isEditing ? sendWhatsAppConfirmation : undefined,
       });
 
       onOpenChange(false);
@@ -695,6 +700,26 @@ export function AppointmentModal({
                   rows={2}
                 />
               </div>
+
+              {!isEditing && (
+                <div className="flex items-start gap-3 rounded-md border p-3">
+                  <input
+                    id="send-whatsapp-confirmation"
+                    type="checkbox"
+                    checked={sendWhatsAppConfirmation}
+                    onChange={(e) => setSendWhatsAppConfirmation(e.target.checked)}
+                    className="mt-0.5 size-4 rounded border-input text-primary"
+                  />
+                  <div className="grid gap-1.5">
+                    <Label htmlFor="send-whatsapp-confirmation" className="cursor-pointer">
+                      Enviar confirmação no WhatsApp
+                    </Label>
+                    <p className="text-xs text-muted-foreground">
+                      Usa o mesmo fluxo de confirmação do agendamento feito pelo cliente.
+                    </p>
+                  </div>
+                </div>
+              )}
             </div>
 
             <DialogFooter className="flex-col gap-3 pt-2 sm:flex-col">

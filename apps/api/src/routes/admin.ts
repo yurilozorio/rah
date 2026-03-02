@@ -6,17 +6,23 @@ import { Prisma } from "@rah/db";
 import { prisma } from "../lib/db.js";
 import { config } from "../lib/config.js";
 import {
-  addLoyaltyPoints,
-  setLoyaltyPoints,
-  subtractLoyaltyPoints,
   fetchServiceById,
   fetchActivePromotionPrice,
   fetchAllServices,
   fetchNotificationSettings,
-  findClientByPhone,
-  createClient
+  fetchContactInfo
 } from "../lib/strapi.js";
 import { queueWhatsAppMessage } from "../lib/whatsapp.js";
+import {
+  getPhoneLookupVariants,
+  normalizePhoneNumber,
+  queueAppointmentConfirmationMessage
+} from "../lib/appointment-confirmation.js";
+import {
+  increaseUserLoyaltyPoints,
+  decreaseUserLoyaltyPoints,
+  setUserLoyaltyPoints
+} from "../lib/loyalty.js";
 
 // Legacy schema for backwards compatibility
 const availabilitySchema = z.object({
@@ -51,9 +57,31 @@ const scheduleSchema = z.object({
 
 const loyaltySchema = z.object({
   phone: z.string().min(8),
-  points: z.number().int(),
+  points: z.number().int().min(0),
   reason: z.string().min(2)
 });
+
+const adminClientsQuerySchema = z.object({
+  q: z.string().trim().optional(),
+  page: z.coerce.number().int().min(1).default(1),
+  pageSize: z.coerce.number().int().min(5).max(100).default(12)
+});
+
+const adminCreateClientSchema = z.object({
+  name: z.string().trim().min(2),
+  phone: z.string().min(8),
+  loyaltyPoints: z.number().int().min(0).default(0)
+});
+
+const adminUpdateClientSchema = z
+  .object({
+    name: z.string().trim().min(2).optional(),
+    phone: z.string().min(8).optional(),
+    loyaltyPoints: z.number().int().min(0).optional()
+  })
+  .refine((data) => data.name !== undefined || data.phone !== undefined || data.loyaltyPoints !== undefined, {
+    message: "At least one field must be provided"
+  });
 
 // Admin appointment schemas
 const adminCreateAppointmentSchema = z.object({
@@ -62,7 +90,8 @@ const adminCreateAppointmentSchema = z.object({
   name: z.string().min(2),
   phone: z.string().min(8),
   notes: z.string().optional(),
-  durationMinutes: z.number().min(15).optional() // Override service duration if needed
+  durationMinutes: z.number().min(15).optional(), // Override service duration if needed
+  sendWhatsAppConfirmation: z.boolean().optional()
 });
 
 const adminUpdateAppointmentSchema = z.object({
@@ -342,24 +371,44 @@ export const registerAdminRoutes = (app: FastifyInstance) => {
   app.post("/admin/loyalty/adjust", { preHandler: app.requireAdmin }, async (request, reply) => {
     const data = loyaltySchema.parse(request.body);
 
-    // Normalize phone (remove non-digits)
-    const normalizedPhone = data.phone.replace(/\D/g, "");
-
-    // Find the user by phone and their Strapi client link
-    const user = await prisma.user.findUnique({
-      where: { phone: normalizedPhone }
+    const phoneVariants = getPhoneLookupVariants(data.phone);
+    const normalizedPhone = normalizePhoneNumber(data.phone);
+    let user = await prisma.user.findFirst({
+      where: {
+        role: "USER",
+        phone: { in: phoneVariants }
+      },
+      orderBy: { createdAt: "asc" }
     });
 
     if (!user) {
       return reply.code(404).send({ message: "Cliente não encontrado com este telefone" });
     }
 
-    if (!user.strapiClientId) {
-      return reply.code(400).send({ message: "Cliente não está vinculado ao Strapi" });
+    if (user.phone !== normalizedPhone) {
+      try {
+        user = await prisma.user.update({
+          where: { id: user.id },
+          data: { phone: normalizedPhone }
+        });
+      } catch (error) {
+        if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {
+          const canonicalUser = await prisma.user.findFirst({
+            where: { role: "USER", phone: normalizedPhone },
+            orderBy: { createdAt: "asc" }
+          });
+          if (canonicalUser) {
+            user = canonicalUser;
+          } else {
+            throw error;
+          }
+        } else {
+          throw error;
+        }
+      }
     }
 
-    // Set loyalty points in Strapi (replace, not add)
-    await setLoyaltyPoints(user.strapiClientId, data.points);
+    await setUserLoyaltyPoints(user.id, data.points);
 
     return { ok: true };
   });
@@ -381,6 +430,222 @@ export const registerAdminRoutes = (app: FastifyInstance) => {
     });
 
     return { users };
+  });
+
+  app.get("/admin/clients", { preHandler: app.requireAdmin }, async (request) => {
+    const query = adminClientsQuerySchema.parse(request.query);
+    const search = query.q?.trim();
+    const where: Prisma.UserWhereInput = {
+      role: "USER"
+    };
+
+    if (search) {
+      const searchDigits = search.replace(/\D/g, "");
+      const searchFilters: Prisma.UserWhereInput[] = [
+        {
+          name: {
+            contains: search,
+            mode: "insensitive"
+          }
+        }
+      ];
+
+      if (searchDigits) {
+        searchFilters.push({ phone: { contains: searchDigits } });
+        searchFilters.push({ phone: normalizePhoneNumber(searchDigits) });
+      }
+
+      where.OR = searchFilters;
+    }
+
+    const total = await prisma.user.count({ where });
+    const totalPages = Math.max(1, Math.ceil(total / query.pageSize));
+    const currentPage = Math.min(query.page, totalPages);
+    const skip = (currentPage - 1) * query.pageSize;
+
+    const clients = await prisma.user.findMany({
+      where,
+      skip,
+      take: query.pageSize,
+      orderBy: [{ name: "asc" }, { createdAt: "desc" }],
+      select: {
+        id: true,
+        name: true,
+        phone: true,
+        loyaltyPoints: true,
+        createdAt: true,
+        updatedAt: true,
+        _count: {
+          select: {
+            appointments: true
+          }
+        }
+      }
+    });
+
+    return {
+      clients: clients.map((client) => ({
+        id: client.id,
+        name: client.name,
+        phone: client.phone,
+        loyaltyPoints: client.loyaltyPoints,
+        createdAt: client.createdAt,
+        updatedAt: client.updatedAt,
+        appointmentsCount: client._count.appointments
+      })),
+      pagination: {
+        page: currentPage,
+        pageSize: query.pageSize,
+        total,
+        totalPages,
+        hasPrev: currentPage > 1,
+        hasNext: currentPage < totalPages
+      }
+    };
+  });
+
+  app.post("/admin/clients", { preHandler: app.requireAdmin }, async (request, reply) => {
+    const data = adminCreateClientSchema.parse(request.body);
+    const normalizedPhone = normalizePhoneNumber(data.phone);
+    const phoneVariants = getPhoneLookupVariants(data.phone);
+
+    const existingClient = await prisma.user.findFirst({
+      where: {
+        role: "USER",
+        phone: { in: phoneVariants }
+      },
+      select: { id: true }
+    });
+
+    if (existingClient) {
+      return reply.code(409).send({ message: "Já existe um cliente com este telefone" });
+    }
+
+    try {
+      const client = await prisma.user.create({
+        data: {
+          name: data.name.trim(),
+          phone: normalizedPhone,
+          role: "USER",
+          loyaltyPoints: data.loyaltyPoints
+        },
+        select: {
+          id: true,
+          name: true,
+          phone: true,
+          loyaltyPoints: true,
+          createdAt: true,
+          updatedAt: true
+        }
+      });
+
+      return reply.code(201).send({ client });
+    } catch (error) {
+      if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {
+        return reply.code(409).send({ message: "Já existe um cliente com este telefone" });
+      }
+
+      throw error;
+    }
+  });
+
+  app.patch("/admin/clients/:id", { preHandler: app.requireAdmin }, async (request, reply) => {
+    const { id } = request.params as { id: string };
+    const data = adminUpdateClientSchema.parse(request.body);
+
+    const existing = await prisma.user.findUnique({
+      where: { id },
+      select: { id: true, role: true }
+    });
+
+    if (!existing) {
+      return reply.code(404).send({ message: "Cliente não encontrado" });
+    }
+
+    if (existing.role !== "USER") {
+      return reply.code(400).send({ message: "Somente clientes podem ser editados nesta rota" });
+    }
+
+    const updateData: Prisma.UserUpdateInput = {};
+    if (data.name !== undefined) {
+      updateData.name = data.name.trim();
+    }
+    if (data.phone !== undefined) {
+      const phoneVariants = getPhoneLookupVariants(data.phone);
+      const conflictingClient = await prisma.user.findFirst({
+        where: {
+          id: { not: id },
+          role: "USER",
+          phone: { in: phoneVariants }
+        },
+        select: { id: true }
+      });
+
+      if (conflictingClient) {
+        return reply.code(409).send({ message: "Já existe um cliente com este telefone" });
+      }
+
+      updateData.phone = normalizePhoneNumber(data.phone);
+    }
+    if (data.loyaltyPoints !== undefined) {
+      updateData.loyaltyPoints = data.loyaltyPoints;
+    }
+
+    try {
+      const client = await prisma.user.update({
+        where: { id },
+        data: updateData,
+        select: {
+          id: true,
+          name: true,
+          phone: true,
+          loyaltyPoints: true,
+          createdAt: true,
+          updatedAt: true
+        }
+      });
+
+      return { client };
+    } catch (error) {
+      if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {
+        return reply.code(409).send({ message: "Já existe um cliente com este telefone" });
+      }
+
+      throw error;
+    }
+  });
+
+  app.delete("/admin/clients/:id", { preHandler: app.requireAdmin }, async (request, reply) => {
+    const { id } = request.params as { id: string };
+
+    const existing = await prisma.user.findUnique({
+      where: { id },
+      select: { id: true, role: true }
+    });
+
+    if (!existing) {
+      return reply.code(404).send({ message: "Cliente não encontrado" });
+    }
+
+    if (existing.role !== "USER") {
+      return reply.code(400).send({ message: "Somente clientes podem ser removidos nesta rota" });
+    }
+
+    const appointmentsCount = await prisma.appointment.count({
+      where: { userId: id }
+    });
+
+    if (appointmentsCount > 0) {
+      return reply.code(409).send({
+        message: "Não é possível excluir cliente com agendamentos vinculados"
+      });
+    }
+
+    await prisma.user.delete({
+      where: { id }
+    });
+
+    return { ok: true };
   });
 
   // Create appointment on behalf of a user (admin only)
@@ -414,39 +679,51 @@ export const registerAdminRoutes = (app: FastifyInstance) => {
       return reply.code(409).send({ message: "Time slot unavailable - overlaps with existing appointment" });
     }
 
-    // Normalize phone (remove non-digits)
-    const normalizedPhone = data.phone.replace(/\D/g, "");
-
-    // Find or create Strapi client
-    let strapiClientId: string | null = null;
-    try {
-      let strapiClient = await findClientByPhone(normalizedPhone);
-      if (!strapiClient) {
-        strapiClient = await createClient({
-          name: data.name,
-          phone: normalizedPhone
-        });
-      }
-      strapiClientId = strapiClient.documentId;
-    } catch (error) {
-      request.log.error({ error }, "Failed to sync with Strapi");
-    }
+    const normalizedPhone = normalizePhoneNumber(data.phone);
+    const phoneVariants = getPhoneLookupVariants(data.phone);
 
     // Find or create user by phone
-    let user = await prisma.user.findUnique({ where: { phone: normalizedPhone } });
+    let user = await prisma.user.findFirst({
+      where: {
+        role: "USER",
+        phone: { in: phoneVariants }
+      },
+      orderBy: { createdAt: "asc" }
+    });
+
     if (!user) {
       user = await prisma.user.create({
         data: {
           name: data.name,
           phone: normalizedPhone,
-          strapiClientId
+          role: "USER"
         }
       });
-    } else if (strapiClientId && !user.strapiClientId) {
-      user = await prisma.user.update({
-        where: { id: user.id },
-        data: { strapiClientId }
-      });
+    } else if (user.phone !== normalizedPhone) {
+      try {
+        user = await prisma.user.update({
+          where: { id: user.id },
+          data: { phone: normalizedPhone }
+        });
+      } catch (error) {
+        if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {
+          const canonicalUser = await prisma.user.findFirst({
+            where: {
+              role: "USER",
+              phone: normalizedPhone
+            },
+            orderBy: { createdAt: "asc" }
+          });
+
+          if (canonicalUser) {
+            user = canonicalUser;
+          } else {
+            throw error;
+          }
+        } else {
+          throw error;
+        }
+      }
     }
 
     // Check for active promotion price
@@ -469,12 +746,29 @@ export const registerAdminRoutes = (app: FastifyInstance) => {
       include: { user: true }
     });
 
-    // Update loyalty points in Strapi if client is linked
-    if (user.strapiClientId) {
+    await increaseUserLoyaltyPoints(user.id, 1);
+
+    // Optional: send WhatsApp confirmation using the same flow as public booking
+    if (data.sendWhatsAppConfirmation) {
       try {
-        await addLoyaltyPoints(user.strapiClientId, 1);
+        const [notificationSettings, contactInfo] = await Promise.all([
+          fetchNotificationSettings(),
+          fetchContactInfo()
+        ]);
+
+        await queueAppointmentConfirmationMessage({
+          phone: normalizePhoneNumber(user.phone),
+          userName: user.name,
+          services: [{ name: service.name, durationMinutes, price: effectivePrice }],
+          startAt,
+          endAt,
+          appointmentId: appointment.id,
+          notificationSettings,
+          contactInfo,
+          log: request.log
+        });
       } catch (error) {
-        request.log.error({ error }, "Failed to update loyalty points in Strapi");
+        request.log.error({ error }, "Failed to queue admin confirmation");
       }
     }
 
@@ -565,13 +859,8 @@ export const registerAdminRoutes = (app: FastifyInstance) => {
       return reply.code(404).send({ message: "Appointment not found" });
     }
 
-    // Deduct loyalty points if user has Strapi client link and appointment was BOOKED
-    if (appointment.status === "BOOKED" && appointment.user.strapiClientId) {
-      try {
-        await subtractLoyaltyPoints(appointment.user.strapiClientId, 1);
-      } catch (error) {
-        request.log.error({ error }, "Failed to deduct loyalty points in Strapi");
-      }
+    if (appointment.status === "BOOKED") {
+      await decreaseUserLoyaltyPoints(appointment.user.id, 1);
     }
 
     // Delete the appointment and all related records
@@ -728,14 +1017,7 @@ export const registerAdminRoutes = (app: FastifyInstance) => {
       return apt;
     });
 
-    // Deduct loyalty points
-    if (appointment.user.strapiClientId) {
-      try {
-        await subtractLoyaltyPoints(appointment.user.strapiClientId, 1);
-      } catch (error) {
-        request.log.error({ error }, "Failed to deduct loyalty points in Strapi");
-      }
-    }
+    await decreaseUserLoyaltyPoints(appointment.user.id, 1);
 
     // Send WhatsApp cancellation message
     try {
@@ -812,12 +1094,8 @@ export const registerAdminRoutes = (app: FastifyInstance) => {
     });
 
     // If reverting from CANCELLED, re-add loyalty point
-    if (!wasDone && appointment.user.strapiClientId) {
-      try {
-        await addLoyaltyPoints(appointment.user.strapiClientId, 1);
-      } catch (error) {
-        request.log.error({ error }, "Failed to re-add loyalty points in Strapi");
-      }
+    if (!wasDone) {
+      await increaseUserLoyaltyPoints(appointment.user.id, 1);
     }
 
     return { appointment: updated };
